@@ -1,0 +1,26 @@
+# Binaries
+/bin/
+/obj/
+/cjamz
+
+# Build logs / temp
+*.log
+*.out
+*.o
+*.exe
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+
+# Backup / temp
+*~
+*.swp
+*.tmp
+
+# VS Code
+.vscode/
+
+# CLion / CMake
+.idea/
+cmake-build-*/
