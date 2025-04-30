@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "src/lexer.h"
-#include "src/parser.h"
-#include "src/semantic.h"
-#include "src/utils.h"
+#include "include/lexer.h"
+#include "include/parser.h"
+#include "include/semantic.h"
+#include "include/utils.h"
 
 int main(int argc, char *argv[])
 {
@@ -30,32 +30,6 @@ int main(int argc, char *argv[])
     if (!tokens || tokens->has_error)
     {
         fprintf(stderr, "Lexical analisis failed.\n");
-
-        free(source_code);
-
-        return EXIT_FAILURE;
-    }
-
-    ASTNode *ast = parse(tokens);
-
-    if (!ast)
-    {
-        fprintf(stderr, "Syntax analysis failed.\n");
-
-        free_tokens(tokens);
-
-        free(source_code);
-
-        return EXIT_FAILURE;
-    }
-
-    if (!semantic_check(ast))
-    {
-        fprintf(stderr, "Semantic analysis failed\n");
-
-        free_ast(ast);
-
-        free_tokens(tokens);
 
         free(source_code);
 
