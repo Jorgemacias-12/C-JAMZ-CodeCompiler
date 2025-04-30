@@ -16,6 +16,7 @@ typedef enum
     TOKEN_LBRACE,
     TOKEN_RBRACE,
     TOKEN_EOF,
+    TOKEN_STRING,
     TOKEN_UNKNOWN,
 } TokenType;
 
@@ -35,12 +36,24 @@ typedef struct TokenNode
 
 typedef struct
 {
+    int line;
+    int column;
+    char character;
+    char *message;
+} LexerError;
+
+typedef struct
+{
     TokenNode *head;
     TokenNode *tail;
+    LexerError *errors;
+    int error_count;
+    int error_capacity;
     bool has_error;
 } TokenList;
 
-TokenList *lexer_analyze(const char *source);
+TokenList *lexer_analyze(const char *source_code);
 void free_tokens(TokenList *list);
+void print_lexer_errors(const TokenList *list);
 
 #endif
