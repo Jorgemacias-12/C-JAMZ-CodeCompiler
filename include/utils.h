@@ -18,6 +18,17 @@
 #include <windows.h>
 #endif
 
+// Error stack configuration
+#define MAX_ERRORS 50
+#define MAX_ERROR_LEN 512
+
+void init_error_stack(void);
+void check_for_errors(void);
+void push_error(const char *format, ...);
+void print_error_stack(void);
+void clear_error_stack(void);
+size_t get_error_count(void);
+
 char *strndup_impl(const char *src, size_t length);
 char *read_file(const char *filename);
 

@@ -5,9 +5,66 @@
 #include "utils.h"
 #include "lexer.h"
 
+static char error_stack[MAX_ERRORS][MAX_ERROR_LEN];
+static size_t error_count;
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
+
+void init_error_stack(void)
+{
+    error_count = 0;
+
+    for (size_t i = 0; i < MAX_ERRORS; i++)
+        error_stack[i][0] = '\0';
+}
+
+void check_for_errors(void)
+{
+    if (get_error_count() == 0)
+        return;
+
+    print_error_stack();
+    clear_error_stack();
+}
+
+void push_error(const char *format, ...)
+{
+    if (error_count >= MAX_ERRORS)
+    {
+        return;
+    }
+
+    va_list args;
+    va_start(args, format);
+    vsnprintf(error_stack[error_count], MAX_ERROR_LEN, format, args);
+    va_end(args);
+
+    // print_error("Compiler error %zu: %s\n", error_count + 1, error_stack[error_count]);
+
+    error_count++;
+}
+
+void print_error_stack(void)
+{
+    print_error("The JAMZ compiled encountered the following error you must check:\n");
+
+    for (int i = 0; i < error_count; i++)
+    {
+        print_error("Compiler error %zu: %s\n", i + 1, error_stack[i]);
+    }
+}
+
+void clear_error_stack(void)
+{
+    error_count = 0;
+}
+
+size_t get_error_count(void)
+{
+    return error_count;
+}
 
 char *strndup_impl(const char *src, size_t length)
 {
@@ -25,19 +82,23 @@ char *read_file(const char *filename)
     FILE *file = fopen(filename, "r");
 
     if (!file)
+    {
+        push_error("Failed to open file: %s\n", filename);
         return NULL;
+    }
 
     if (fseek(file, 0, SEEK_END) != 0)
     {
         fclose(file);
+        push_error("Failed to seek to end of file: %s\n", filename);
         return NULL;
     }
 
     long length = ftell(file);
 
-    if (length < 0)
+    if (length <= 0)
     {
-        print_error("The source code file %s has no size readable.", filename);
+        push_error("The source code file %s has no readable size.\n", filename);
         fclose(file);
         return NULL;
     }
@@ -48,8 +109,8 @@ char *read_file(const char *filename)
 
     if (!content)
     {
-        print_error("The source code file %s has no content.", filename);
         fclose(file);
+        push_error("Memory allocation failed for reading file: %s\n");
         return NULL;
     }
 

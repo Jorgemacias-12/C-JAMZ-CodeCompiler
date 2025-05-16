@@ -7,70 +7,64 @@
 
 int main(int argc, char *argv[])
 {
+    init_error_stack();
+
+    char *source_code = NULL;
+    TokenList *tokens = NULL;
+    int exit_code = EXIT_SUCCESS;
+
     if (argc != 2)
     {
-        print_error("Usage: %s <source_file.c>\n", argv[0]);
-
-        return EXIT_FAILURE;
+        push_error("Usage: %s <source_file.c>\n", argv[0]);
+        exit_code = EXIT_FAILURE;
+        goto cleanup;
     }
 
     const char *filename = argv[1];
 
-    char *source_code = read_file(filename);
-
+    source_code = read_file(filename);
     if (!source_code)
     {
-        fprintf(stderr, COLOR_RED "Error reading file %s\n", filename);
-
-        return EXIT_FAILURE;
+        push_error("Error reading file %s\n", filename);
+        exit_code = EXIT_FAILURE;
+        goto cleanup;
     }
 
-    TokenList *tokens = lexer_analyze(source_code);
-
+    tokens = lexer_analyze(source_code);
     if (!tokens)
     {
-        fprintf(stderr, "Lexer returned null.\n");
-        free(source_code);
-        return EXIT_FAILURE;
+        push_error("Lexer analysis returned null.\n");
+        exit_code = EXIT_FAILURE;
+        goto cleanup;
     }
 
     if (tokens->has_error)
     {
-        print_error("Lexical analysis failed with the folowing errors:\n\n");
+        push_error("Lexical analysis failed with the following errors:\n\n");
 
         for (int i = 0; i < tokens->error_count; ++i)
         {
             LexerError err = tokens->errors[i];
-
-            print_error("Line %d, Column %d] Unexpected character '%c': %s\n", err.line, err.column, err.character, err.message);
+            push_error("Line %d, Column %d] Unexpected character '%c': %s\n",
+                       err.line, err.column, err.character, err.message);
         }
 
+        exit_code = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+cleanup:
+    if (tokens != NULL)
         free_tokens(tokens);
+
+    if (source_code != NULL)
         free(source_code);
 
-        return EXIT_FAILURE;
-    }
-
-    int token_count;
-
-    Token *token_array = token_list_to_array(tokens, &token_count);
-
-    Parser parser = {
-        .tokens = token_array,
-        .count = token_count,
-        .current = 0,
-    };
-
-    ASTNode *program = parse_program(&parser);
-
-    if (program)
+    if (get_error_count() > 0)
     {
-        print_ast_ascii(program, 0, true);
-        free_ast(program);
+        print_error_stack();
+        clear_error_stack();
     }
 
-    free_tokens(tokens);
-    free(source_code);
-
-    return EXIT_SUCCESS;
+    return exit_code;
 }
