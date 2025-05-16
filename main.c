@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 2)
     {
-        fprintf(stderr, "Usage: %s <source_file.c>\n", argv[0]);
+        print_error("Usage: %s <source_file.c>\n", argv[0]);
 
         return EXIT_FAILURE;
     }
@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 
     if (!source_code)
     {
-        fprintf(stderr, RED_COLOR "Error reading file %s\n", filename);
+        fprintf(stderr, COLOR_RED "Error reading file %s\n", filename);
 
         return EXIT_FAILURE;
     }
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 
     if (tokens->has_error)
     {
-        print_error("Lexical analysis failed with the following errors\n\n");
+        print_error("Lexical analysis failed with the folowing errors:\n\n");
 
         for (int i = 0; i < tokens->error_count; ++i)
         {
@@ -50,6 +50,27 @@ int main(int argc, char *argv[])
 
         return EXIT_FAILURE;
     }
+
+    int token_count;
+
+    Token *token_array = token_list_to_array(tokens, &token_count);
+
+    Parser parser = {
+        .tokens = token_array,
+        .count = token_count,
+        .current = 0,
+    };
+
+    ASTNode *program = parse_program(&parser);
+
+    if (program)
+    {
+        print_ast_ascii(program, 0, true);
+        free_ast(program);
+    }
+
+    free_tokens(tokens);
+    free(source_code);
 
     return EXIT_SUCCESS;
 }
