@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 
     const char *extension = get_filename_ext(argv[1]);
 
-    if (extension != "c")
+    if (strcmp(extension, "c") != 0)
     {
         push_error("The file type you provided is not a valid C language type\n");
         exit_code = EXIT_FAILURE;
