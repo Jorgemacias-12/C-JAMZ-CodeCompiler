@@ -20,6 +20,15 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
 
+    const char *extension = get_filename_ext(argv[1]);
+
+    if (extension != 0)
+    {
+        push_error("The file type you provided is not a valid C language type\n");
+        exit_code = EXIT_FAILURE;
+        goto cleanup;
+    }
+
     const char *filename = argv[1];
 
     source_code = read_file(filename);

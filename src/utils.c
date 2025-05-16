@@ -46,12 +46,14 @@ void push_error(const char *format, ...)
 
 void print_error_stack(void)
 {
-    print_error("The JAMZ compiled encountered the following error you must check:\n");
+    print_error("The JAMZ compiler encountered the following error you must check:\n\n");
 
     for (int i = 0; i < error_count; i++)
     {
         print_error("Compiler error %zu: %s\n", i + 1, error_stack[i]);
     }
+
+    print_error("Compiler finished with errors! quantity: %d\n", get_error_count());
 }
 
 void clear_error_stack(void)
@@ -284,10 +286,8 @@ void reset_console_color()
 
 const char *get_filename_ext(const char *filename)
 {
-    const char *dot = strchr(filename, ".");
-
+    const char *dot = strrchr(filename, '.');
     if (!dot || dot == filename)
         return "";
-
     return dot + 1;
 }
