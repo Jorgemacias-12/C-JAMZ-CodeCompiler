@@ -41,8 +41,6 @@ void push_error(const char *format, ...)
     vsnprintf(error_stack[error_count], MAX_ERROR_LEN, format, args);
     va_end(args);
 
-    // print_error("Compiler error %zu: %s\n", error_count + 1, error_stack[error_count]);
-
     error_count++;
 }
 
@@ -282,4 +280,14 @@ void set_console_color(WORD color)
 void reset_console_color()
 {
     set_console_color(7);
+}
+
+const char *get_filename_ext(const char *filename)
+{
+    const char *dot = strchr(filename, ".");
+
+    if (!dot || dot == filename)
+        return "";
+
+    return dot + 1;
 }

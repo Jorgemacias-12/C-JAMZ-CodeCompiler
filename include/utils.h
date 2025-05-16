@@ -40,4 +40,6 @@ void print_ast_ascii(ASTNode *node, const char *prefix, bool is_last);
 void set_console_color(WORD color);
 void reset_console_color();
 
+const char *get_filename_ext(const char *filename);
+
 #endif
