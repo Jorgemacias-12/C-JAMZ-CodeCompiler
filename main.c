@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
     init_error_stack();
 
     char *source_code = NULL;
-    TokenList *tokens = NULL;
+    JAMZTokenList *tokens = NULL;
     int exit_code = EXIT_SUCCESS;
 
     if (argc != 2)
@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 
     if (strcmp(extension, "c") != 0)
     {
-        push_error("The file type you provided is not a valid C language type\n");
+        push_error("The file type you provided is not a valid C language type\nFilname: %s\n", argv[1]);
         exit_code = EXIT_FAILURE;
         goto cleanup;
     }
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 
         for (int i = 0; i < tokens->error_count; ++i)
         {
-            LexerError err = tokens->errors[i];
+            JAMZLexerError err = tokens->errors[i];
             push_error("Line %d, Column %d] Unexpected character '%c': %s\n",
                        err.line, err.column, err.character, err.message);
         }
