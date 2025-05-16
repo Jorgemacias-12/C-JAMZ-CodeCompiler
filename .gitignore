@@ -24,3 +24,6 @@ Thumbs.db
 # CLion / CMake
 .idea/
 cmake-build-*/
+
+# Ignore any example file
+example.*
