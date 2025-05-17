@@ -146,133 +146,6 @@ void print_error(const char *format, ...)
     va_end(args);
 }
 
-void print_ast(ASTNode *node, int indent)
-{
-    if (!node)
-        return;
-
-    for (int i = 0; i < indent; i++)
-        printf("  ");
-
-    switch (node->type)
-    {
-    case AST_PROGRAM:
-        printf(COLOR_BOLD COLOR_MAGENTA "Program\n" COLOR_RESET);
-        for (int i = 0; i < node->program.count; i++)
-            print_ast(node->program.statements[i], indent + 1);
-        break;
-
-    case AST_DECLARATION:
-        printf(COLOR_BOLD COLOR_YELLOW "Declaration: " COLOR_RESET "%s %s\n",
-               node->declaration.var_type, node->declaration.identifier);
-        print_ast(node->declaration.value, indent + 1);
-        break;
-
-    case AST_NUMBER:
-        printf(COLOR_BOLD COLOR_GREEN "Number: " COLOR_RESET "%d\n",
-               node->number.value);
-        break;
-
-    case AST_IDENTIFIER:
-        printf(COLOR_BOLD COLOR_CYAN "Identifier: " COLOR_RESET "%s\n",
-               node->identifier.name);
-        break;
-
-    case AST_BINARY_OP:
-        printf(COLOR_BOLD COLOR_BLUE "Binary Operation: " COLOR_RESET "%s\n",
-               node->binary_op.op);
-        print_ast(node->binary_op.left, indent + 1);
-        print_ast(node->binary_op.right, indent + 1);
-        break;
-
-    default:
-        for (int i = 0; i < indent; i++)
-            printf("  ");
-        printf("Unknown AST node type\n");
-        break;
-    }
-}
-
-void print_ast_ascii(ASTNode *node, const char *indent, bool is_last)
-{
-    if (!node)
-        return;
-
-    printf("%s", indent);
-    printf(is_last ? "\\-- " : "|-- ");
-
-    char new_indent[1024];
-    snprintf(new_indent, sizeof(new_indent), "%s%s", indent, is_last ? "    " : "│   ");
-
-    switch (node->type)
-    {
-    case AST_PROGRAM:
-        set_console_color(13); // MAGENTA
-        printf("Program\n");
-        reset_console_color();
-
-        for (int i = 0; i < node->program.count; i++)
-        {
-            print_ast_ascii(node->program.statements[i], new_indent, i == node->program.count - 1);
-        }
-        break;
-
-    case AST_DECLARATION:
-        set_console_color(9); // BLUE
-        printf("Declaration: %s %s\n", node->declaration.var_type, node->declaration.identifier);
-        reset_console_color();
-
-        print_ast_ascii(node->declaration.value, new_indent, true);
-        break;
-
-    case AST_NUMBER:
-        set_console_color(10); // GREEN
-        printf("Number: %d\n", node->number.value);
-        reset_console_color();
-        break;
-
-    case AST_IDENTIFIER:
-        set_console_color(14); // YELLOW
-        printf("Identifier: %s\n", node->identifier.name);
-        reset_console_color();
-        break;
-
-    case AST_BINARY_OP:
-        set_console_color(11); // CYAN
-        printf("BinaryOp: %s\n", node->binary_op.op);
-        reset_console_color();
-
-        print_ast_ascii(node->binary_op.left, new_indent, false);
-        print_ast_ascii(node->binary_op.right, new_indent, true);
-        break;
-
-    default:
-        printf("Unknown Node\n");
-        break;
-    }
-}
-
-Token *token_list_to_array(TokenList *list, int *out_count)
-{
-    int count = 0;
-    for (TokenNode *node = list->head; node != NULL; node = node->next)
-    {
-        count++;
-    }
-
-    Token *array = malloc(sizeof(Token) * count);
-    int i = 0;
-    for (TokenNode *node = list->head; node != NULL; node = node->next)
-    {
-        array[i++] = node->token;
-    }
-
-    if (out_count)
-        *out_count = count;
-
-    return array;
-}
-
 void set_console_color(WORD color)
 {
     HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -290,4 +163,53 @@ const char *get_filename_ext(const char *filename)
     if (!dot || dot == filename)
         return "";
     return dot + 1;
+}
+
+const char *jamz_token_type_to_string(JAMZTokenType type)
+{
+    switch (type)
+    {
+    case JAMZ_TOKEN_INT:
+        return "INT";
+    case JAMZ_TOKEN_RETURN:
+        return "RETURN";
+    case JAMZ_TOKEN_IDENTIFIER:
+        return "IDENTIFIER";
+    case JAMZ_TOKEN_NUMBER:
+        return "NUMBER";
+    case JAMZ_TOKEN_OPERATOR:
+        return "OPERATOR";
+    case JAMZ_TOKEN_SEMICOLON:
+        return "SEMICOLON";
+    case JAMZ_TOKEN_LPAREN:
+        return "LPAREN";
+    case JAMZ_TOKEN_RPAREN:
+        return "RPAREN";
+    case JAMZ_TOKEN_LBRACE:
+        return "LBRACE";
+    case JAMZ_TOKEN_RBRACE:
+        return "RBRACE";
+    case JAMZ_TOKEN_STRING:
+        return "STRING";
+    case JAMZ_TOKEN_EOF:
+        return "EOF";
+    case JAMZ_TOKEN_UNKNOWN:
+        return "UNKNOWN";
+    default:
+        return "UNDEFINED";
+    }
+}
+
+void print_tokens(const JAMZTokenList *list)
+{
+    for (size_t i = 0; i < list->count; ++i)
+    {
+        JAMZToken token = list->tokens[i];
+        printf("[%-3zu] %-12s '%s'  (line %d, col %d)\n",
+               i,
+               jamz_token_type_to_string(token.type),
+               token.lexeme,
+               token.line,
+               token.column);
+    }
 }

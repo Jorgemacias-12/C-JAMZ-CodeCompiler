@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
-#include "parser.h"
+#include "lexer.h"
 
 #define COLOR_RESET "\033[0m"
 #define COLOR_BLUE "\033[94m"
@@ -32,14 +32,14 @@ size_t get_error_count(void);
 char *strndup_impl(const char *src, size_t length);
 char *read_file(const char *filename);
 
-Token *token_list_to_array(TokenList *list, int *out_count);
-
 void print_error(const char *format, ...);
-void print_ast(ASTNode *node, int indent);
-void print_ast_ascii(ASTNode *node, const char *prefix, bool is_last);
 void set_console_color(WORD color);
 void reset_console_color();
 
 const char *get_filename_ext(const char *filename);
+
+// Lexer utils
+const char *jamz_token_type_to_string(JAMZTokenType type);
+void print_tokens(const JAMZTokenList *list);
 
 #endif
