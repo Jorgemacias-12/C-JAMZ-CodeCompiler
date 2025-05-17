@@ -5,326 +5,195 @@
 #include <stdio.h>
 #include <ctype.h>
 
-static const int INITIAL_ERROR_CAPACITY = 4;
+#define INITIAL_CAPACITY 64
 
-static void add_lexer_error(TokenList *list, int line, int column, char character, const char *message)
+static JAMZToken make_token(JAMZTokenType type, const char *lexeme, int line, int column)
 {
-    if (list->error_count >= list->error_capacity)
-    {
-        int new_capacity = (list->error_capacity == 0) ? INITIAL_ERROR_CAPACITY : list->error_capacity * 2;
-
-        LexerError *resized = realloc(list->errors, sizeof(LexerError) * new_capacity);
-        if (!resized)
-            return;
-
-        list->errors = resized;
-        list->error_capacity = new_capacity;
-    }
-
-    LexerError err = {
-        .line = line,
-        .column = column,
-        .character = character,
-        .message = strdup(message)};
-
-    list->errors[list->error_count++] = err;
-    list->has_error = true;
+    JAMZToken token;
+    token.type = type;
+    token.lexeme = strdup(lexeme);
+    token.line = line;
+    token.column = column;
+    return token;
 }
 
-static TokenNode *create_token(TokenType type, const char *lexeme, size_t length)
+static void add_token(JAMZTokenList *list, JAMZToken token)
 {
-    TokenNode *node = malloc(sizeof(TokenNode));
-    if (!node)
-        return NULL;
-
-    node->token.type = type;
-    node->token.lexeme = strndup_impl(lexeme, length);
-    node->next = NULL;
-
-    return node;
+    if (list->count >= list->capacity)
+    {
+        list->capacity *= 2;
+        list->tokens = realloc(list->tokens, list->capacity * sizeof(JAMZToken));
+    }
+    list->tokens[list->count++] = token;
 }
 
-static void append_token(TokenList *list, TokenNode *node)
+static bool is_operator_char(char c)
 {
-    if (!list->head)
-    {
-        list->head = list->tail = node;
-    }
-    else
-    {
-        list->tail->next = node;
-        list->tail = node;
-    }
+    return c == '+' || c == '-' || c == '*' || c == '/' || c == '=';
 }
 
-TokenList *lexer_analyze(const char *source_code)
+static bool is_keyword(const char *lexeme, JAMZTokenType *out_type)
 {
-    TokenList *tokens = malloc(sizeof(TokenList));
+    if (strcmp(lexeme, "int") == 0)
+    {
+        *out_type = JAMZ_TOKEN_INT;
+        return true;
+    }
+    if (strcmp(lexeme, "return") == 0)
+    {
+        *out_type = JAMZ_TOKEN_RETURN;
+        return true;
+    }
+    return false;
+}
 
-    tokens->head = tokens->tail = NULL;
-    tokens->error_count = 0;
-    tokens->error_capacity = INITIAL_ERROR_CAPACITY;
-    tokens->errors = malloc(tokens->error_capacity * sizeof(LexerError));
-    tokens->has_error = false;
+JAMZTokenList *lexer_analyze(const char *source)
+{
+    JAMZTokenList *list = malloc(sizeof(JAMZTokenList));
+    list->tokens = malloc(sizeof(JAMZToken) * INITIAL_CAPACITY);
+    list->count = 0;
+    list->capacity = INITIAL_CAPACITY;
+    list->has_error = false;
 
-    const char *curr = source_code;
     int line = 1;
-    int column = 1;
+    int col = 1;
+    const char *start = source;
+    const char *current = source;
 
-    while (*curr)
+    while (*current != '\0')
     {
-        if (isspace(*curr))
+        start = current;
+
+        if (isspace(*current))
         {
-            if (*curr == '\n')
+            if (*current == '\n')
             {
                 line++;
-                column = 1;
+                col = 1;
             }
             else
             {
-                column++;
+                col++;
             }
-            ++curr;
+            current++;
             continue;
         }
 
-        if (*curr == '/' && *(curr + 1) == '/')
+        if (isdigit(*current))
         {
-            while (*curr && *curr != '\n')
-            {
-                ++curr;
-                column++;
-            }
+            while (isdigit(*current))
+                current++;
+            int len = current - start;
+            char *lexeme = strndup_impl(start, len);
+            add_token(list, make_token(JAMZ_TOKEN_NUMBER, lexeme, line, col));
+            free(lexeme);
+            col += len;
             continue;
         }
 
-        if (*curr == '/' && *(curr + 1) == '*')
+        if (isalpha(*current) || *current == '_')
         {
-            curr += 2;
-            column += 2;
-            while (*curr && (*curr != '*' || *(curr + 1) != '/'))
-            {
-                ++curr;
-                column++;
-            }
-            curr += 2;
-            column += 2;
+            while (isalnum(*current) || *current == '_')
+                current++;
+            int len = current - start;
+            char *lexeme = strndup_impl(start, len);
+            JAMZTokenType type = JAMZ_TOKEN_IDENTIFIER;
+            is_keyword(lexeme, &type);
+            add_token(list, make_token(type, lexeme, line, col));
+            free(lexeme);
+            col += len;
             continue;
         }
 
-        if (isalpha(*curr) || *curr == '_')
+        if (is_operator_char(*current))
         {
-            const char *start = curr;
-            while (isalnum(*curr) || *curr == '_')
-            {
-                ++curr;
-                column++;
-            }
-            TokenNode *node = create_token(TOKEN_IDENTIFIER, start, curr - start);
-            append_token(tokens, node);
+            char op[2] = {*current, '\0'};
+            add_token(list, make_token(JAMZ_TOKEN_OPERATOR, op, line, col));
+            current++;
+            col++;
             continue;
         }
 
-        if (*curr == '-' && isdigit(*(curr + 1)))
+        switch (*current)
         {
-            const char *start = curr;
-            ++curr;
-            column++;
-            while (isdigit(*curr))
+        case ';':
+            add_token(list, make_token(JAMZ_TOKEN_SEMICOLON, ";", line, col));
+            current++;
+            col++;
+            continue;
+        case '(':
+            add_token(list, make_token(JAMZ_TOKEN_LPAREN, "(", line, col));
+            current++;
+            col++;
+            continue;
+        case ')':
+            add_token(list, make_token(JAMZ_TOKEN_RPAREN, ")", line, col));
+            current++;
+            col++;
+            continue;
+        case '{':
+            add_token(list, make_token(JAMZ_TOKEN_LBRACE, "{", line, col));
+            current++;
+            col++;
+            continue;
+        case '}':
+            add_token(list, make_token(JAMZ_TOKEN_RBRACE, "}", line, col));
+            current++;
+            col++;
+            continue;
+        case '"':
+        {
+            current++;
+            const char *string_start = current;
+            int string_col = col + 1;
+            while (*current != '"' && *current != '\0' && *current != '\n')
+                current++;
+            if (*current == '"')
             {
-                ++curr;
-                column++;
-            }
-            if (*curr == '.')
-            {
-                ++curr;
-                column++;
-                while (isdigit(*curr))
-                {
-                    ++curr;
-                    column++;
-                }
-            }
-            TokenNode *node = create_token(TOKEN_NUMBER, start, curr - start);
-            append_token(tokens, node);
-            continue;
-        }
-
-        if (isdigit(*curr))
-        {
-            const char *start = curr;
-            while (isdigit(*curr))
-            {
-                ++curr;
-                column++;
-            }
-            if (*curr == '.')
-            {
-                ++curr;
-                column++;
-                while (isdigit(*curr))
-                {
-                    ++curr;
-                    column++;
-                }
-            }
-            TokenNode *node = create_token(TOKEN_NUMBER, start, curr - start);
-            append_token(tokens, node);
-            continue;
-        }
-
-        if (*curr == '(')
-        {
-            TokenNode *node = create_token(TOKEN_LPAREN, curr, 1);
-            append_token(tokens, node);
-            ++curr;
-            column++;
-            continue;
-        }
-        if (*curr == ')')
-        {
-            TokenNode *node = create_token(TOKEN_RPAREN, curr, 1);
-            append_token(tokens, node);
-            ++curr;
-            column++;
-            continue;
-        }
-        if (*curr == '{')
-        {
-            TokenNode *node = create_token(TOKEN_LBRACE, curr, 1);
-            append_token(tokens, node);
-            ++curr;
-            column++;
-            continue;
-        }
-        if (*curr == '}')
-        {
-            TokenNode *node = create_token(TOKEN_RBRACE, curr, 1);
-            append_token(tokens, node);
-            ++curr;
-            column++;
-            continue;
-        }
-
-        if (*curr == ';')
-        {
-            TokenNode *node = create_token(TOKEN_SEMICOLON, curr, 1);
-            append_token(tokens, node);
-            ++curr;
-            column++;
-            continue;
-        }
-
-        if (*curr == '"')
-        {
-            const char *start = curr;
-            ++curr;
-            column++;
-            while (*curr && *curr != '"')
-            {
-                ++curr;
-                column++;
-            }
-            if (*curr == '"')
-            {
-                ++curr;
-                column++;
-                TokenNode *node = create_token(TOKEN_STRING, start, curr - start);
-                append_token(tokens, node);
+                int len = current - string_start;
+                char *lexeme = strndup_impl(string_start, len);
+                add_token(list, make_token(JAMZ_TOKEN_STRING, lexeme, line, string_col));
+                free(lexeme);
+                current++;
+                col += len + 2;
             }
             else
             {
-                add_lexer_error(tokens, line, column, *curr, "Unterminated string literal");
+                push_error("Line %d, Column %d] Unterminated string literal\n", line, col);
+                list->has_error = true;
+                col++;
             }
             continue;
         }
-
-        if (strncmp(curr, "int", 3) == 0 && !isalnum(curr[3]))
-        {
-            TokenNode *node = create_token(TOKEN_INT, curr, 3);
-            append_token(tokens, node);
-            curr += 3;
-            column += 3;
-            continue;
-        }
-        if (strncmp(curr, "return", 6) == 0 && !isalnum(curr[6]))
-        {
-            TokenNode *node = create_token(TOKEN_RETURN, curr, 6);
-            append_token(tokens, node);
-            curr += 6;
-            column += 6;
-            continue;
         }
 
-        if (*curr == '+')
-        {
-            TokenNode *node = create_token(TOKEN_OPERATOR, curr, 1);
-            append_token(tokens, node);
-            ++curr;
-            column++;
-            continue;
-        }
-        if (*curr == '-')
-        {
-            TokenNode *node = create_token(TOKEN_OPERATOR, curr, 1);
-            append_token(tokens, node);
-            ++curr;
-            column++;
-            continue;
-        }
-        if (*curr == '*')
-        {
-            TokenNode *node = create_token(TOKEN_OPERATOR, curr, 1);
-            append_token(tokens, node);
-            ++curr;
-            column++;
-            continue;
-        }
-        if (*curr == '/')
-        {
-            TokenNode *node = create_token(TOKEN_OPERATOR, curr, 1);
-            append_token(tokens, node);
-            ++curr;
-            column++;
-            continue;
-        }
-
-        if (*curr == '=' && *(curr + 1) == '=')
-        {
-            TokenNode *node = create_token(TOKEN_OPERATOR, curr, 2);
-            append_token(tokens, node);
-            curr += 2;
-            column += 2;
-            continue;
-        }
-
-        add_lexer_error(tokens, line, column, *curr, "Invalid character");
-        ++curr;
-        column++;
+        char msg[64];
+        snprintf(msg, sizeof(msg), "Unexpected character '%c'", *current);
+        push_error("Line %d, Column %d] %s\n", line, col, msg);
+        list->has_error = true;
+        current++;
+        col++;
     }
 
-    return tokens;
+    add_token(list, make_token(JAMZ_TOKEN_EOF, "", line, col));
+    return list;
 }
 
-void free_tokens(TokenList *tokens)
+void free_tokens(JAMZTokenList *list)
 {
-    TokenNode *node = tokens->head;
+    if (!list)
+        return;
 
-    while (node)
+    for (size_t i = 0; i < list->error_count; ++i)
     {
-        TokenNode *next = node->next;
-
-        free(node->token.lexeme);
-        free(node);
-
-        node = next;
+        free(list->tokens[i].lexeme);
     }
+    free(list->tokens);
 
-    for (int i = 0; i < tokens->error_count; ++i)
+    for (size_t i = 0; i < list->error_count; ++i)
     {
-        free(tokens->errors[i].message);
+        free(list->errors[i].message);
     }
-
-    free(tokens->errors);
-    free(tokens);
+    free(list->errors);
+    free(list);
 }

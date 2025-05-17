@@ -32,6 +32,7 @@ int main(int argc, char *argv[])
     const char *filename = argv[1];
 
     source_code = read_file(filename);
+
     if (!source_code)
     {
         push_error("Error reading file %s\n", filename);
@@ -40,6 +41,7 @@ int main(int argc, char *argv[])
     }
 
     tokens = lexer_analyze(source_code);
+
     if (!tokens)
     {
         push_error("Lexer analysis returned null.\n");
@@ -51,7 +53,7 @@ int main(int argc, char *argv[])
     {
         push_error("Lexical analysis failed with the following errors:\n\n");
 
-        for (int i = 0; i < tokens->error_count; ++i)
+        for (size_t i = 0; i < tokens->error_count; ++i)
         {
             JAMZLexerError err = tokens->errors[i];
             push_error("Line %d, Column %d] Unexpected character '%c': %s\n",

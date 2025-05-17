@@ -2,37 +2,32 @@
 #define LEXER_H
 
 #include <stdbool.h>
+#include <stdlib.h>
 
 typedef enum
 {
-    TOKEN_INT,
-    TOKEN_RETURN,
-    TOKEN_IDENTIFIER,
-    TOKEN_NUMBER,
-    TOKEN_OPERATOR,
-    TOKEN_SEMICOLON,
-    TOKEN_LPAREN,
-    TOKEN_RPAREN,
-    TOKEN_LBRACE,
-    TOKEN_RBRACE,
-    TOKEN_EOF,
-    TOKEN_STRING,
-    TOKEN_UNKNOWN,
-} TokenType;
+    JAMZ_TOKEN_INT,
+    JAMZ_TOKEN_RETURN,
+    JAMZ_TOKEN_IDENTIFIER,
+    JAMZ_TOKEN_NUMBER,
+    JAMZ_TOKEN_OPERATOR,
+    JAMZ_TOKEN_SEMICOLON,
+    JAMZ_TOKEN_LPAREN,
+    JAMZ_TOKEN_RPAREN,
+    JAMZ_TOKEN_LBRACE,
+    JAMZ_TOKEN_RBRACE,
+    JAMZ_TOKEN_STRING,
+    JAMZ_TOKEN_EOF,
+    JAMZ_TOKEN_UNKNOWN
+} JAMZTokenType;
 
 typedef struct
 {
-    TokenType type;
+    JAMZTokenType type;
     char *lexeme;
     int line;
     int column;
-} Token;
-
-typedef struct TokenNode
-{
-    Token token;
-    struct TokenNode *next;
-} TokenNode;
+} JAMZToken;
 
 typedef struct
 {
@@ -40,20 +35,21 @@ typedef struct
     int column;
     char character;
     char *message;
-} LexerError;
+} JAMZLexerError;
 
 typedef struct
 {
-    TokenNode *head;
-    TokenNode *tail;
-    LexerError *errors;
-    int error_count;
-    int error_capacity;
+    JAMZToken *tokens;
+    size_t count;
+    size_t capacity;
     bool has_error;
-} TokenList;
+    JAMZLexerError *errors;
+    size_t error_count;
+} JAMZTokenList;
 
-TokenList *lexer_analyze(const char *source_code);
-void free_tokens(TokenList *list);
-void print_lexer_errors(const TokenList *list);
+JAMZTokenList *lexer_analyze(const char *source);
+const char *jamz_token_type_to_string(JAMZTokenType type);
+void print_tokens(const JAMZTokenList *list);
+void free_tokens(JAMZTokenList *list);
 
 #endif
