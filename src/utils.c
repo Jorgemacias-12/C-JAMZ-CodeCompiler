@@ -48,7 +48,7 @@ void print_error_stack(void)
 {
     print_error("The JAMZ compiler encountered the following error you must check:\n\n");
 
-    for (int i = 0; i < error_count; i++)
+    for (size_t i = 0; i < error_count; i++)
     {
         print_error("Compiler error %zu: %s\n", i + 1, error_stack[i]);
     }
@@ -195,6 +195,8 @@ const char *jamz_token_type_to_string(JAMZTokenType type)
         return "EOF";
     case JAMZ_TOKEN_UNKNOWN:
         return "UNKNOWN";
+    case JAMZ_TOKEN_MAIN:
+        return "MAIN FUNCTION";
     default:
         return "UNDEFINED";
     }
@@ -212,4 +214,158 @@ void print_tokens(const JAMZTokenList *list)
                token.line,
                token.column);
     }
+}
+
+static void print_indent_ascii(int indent, bool is_last)
+{
+    for (int i = 0; i < indent - 1; ++i)
+    {
+        printf("|   ");
+    }
+    if (indent > 0)
+    {
+        printf("%s-- ", is_last ? "`" : "|");
+    }
+}
+
+static void print_node_info(const JAMZASTNode *node, const char *label)
+{
+    printf("%s (line: %d, col: %d)\n", label, node->line, node->column);
+}
+
+static void print_ast_internal(const JAMZASTNode *node, int indent, bool is_last)
+{
+    if (!node)
+        return;
+
+    print_indent_ascii(indent, is_last);
+
+    switch (node->type)
+    {
+    case JAMZ_AST_PROGRAM:
+        print_node_info(node, "Program");
+        for (size_t i = 0; i < node->block.count; ++i)
+        {
+            print_ast_internal(node->block.statements[i], indent + 1, i == node->block.count - 1);
+        }
+        break;
+
+    case JAMZ_AST_BLOCK:
+        print_node_info(node, "Block");
+        for (size_t i = 0; i < node->block.count; ++i)
+        {
+            print_ast_internal(node->block.statements[i], indent + 1, i == node->block.count - 1);
+        }
+        break;
+
+    case JAMZ_AST_RETURN:
+        print_node_info(node, "Return");
+        print_ast_internal(node->return_stmt.value, indent + 1, true);
+        break;
+
+    case JAMZ_AST_IF:
+        print_node_info(node, "If");
+
+        print_indent_ascii(indent + 1, false);
+        printf("Condition\n");
+        print_ast_internal(node->if_stmt.condition, indent + 2, true);
+
+        print_indent_ascii(indent + 1, node->if_stmt.else_branch == NULL);
+        printf("Then\n");
+        print_ast_internal(node->if_stmt.then_branch, indent + 2, node->if_stmt.else_branch == NULL);
+
+        if (node->if_stmt.else_branch)
+        {
+            print_indent_ascii(indent + 1, true);
+            printf("Else\n");
+            print_ast_internal(node->if_stmt.else_branch, indent + 2, true);
+        }
+        break;
+
+    case JAMZ_AST_BINARY:
+    {
+        char buffer[64];
+        snprintf(buffer, sizeof(buffer), "Binary '%s'", node->binary.operator.lexeme);
+        print_node_info(node, buffer);
+        print_ast_internal(node->binary.left, indent + 1, false);
+        print_ast_internal(node->binary.right, indent + 1, true);
+        break;
+    }
+
+    case JAMZ_AST_LITERAL:
+    {
+        char buffer[64];
+        snprintf(buffer, sizeof(buffer), "Literal '%s'", node->literal.value.lexeme);
+        print_node_info(node, buffer);
+        break;
+    }
+
+    case JAMZ_AST_VARIABLE:
+    {
+        char buffer[64];
+        snprintf(buffer, sizeof(buffer), "Variable '%s'", node->variable.name.lexeme);
+        print_node_info(node, buffer);
+        break;
+    }
+
+    default:
+        print_node_info(node, "Unknown");
+        break;
+    }
+}
+
+void print_ast(const JAMZASTNode *node, int indent)
+{
+    print_ast_internal(node, indent, true);
+}
+
+void free_ast(JAMZASTNode *node)
+{
+    if (!node)
+        return;
+    switch (node->type)
+    {
+    case JAMZ_AST_BLOCK:
+        for (size_t i = 0; i < node->block.count; ++i)
+        {
+            free_ast(node->block.statements[i]);
+        }
+        free(node->block.statements);
+        break;
+
+    case JAMZ_AST_RETURN:
+        free_ast(node->return_stmt.value);
+        break;
+
+    case JAMZ_AST_IF:
+        free_ast(node->if_stmt.condition);
+        free_ast(node->if_stmt.then_branch);
+        if (node->if_stmt.else_branch)
+            free_ast(node->if_stmt.else_branch);
+        break;
+
+    case JAMZ_AST_BINARY:
+        free_ast(node->binary.left);
+        free_ast(node->binary.right);
+        break;
+
+    case JAMZ_AST_LITERAL:
+    case JAMZ_AST_VARIABLE:
+        // Nada que liberar manualmente
+        break;
+
+    case JAMZ_AST_EXPRESSION:
+        // Si decides tener un nodo JAMZ_AST_EXPRESSION que contenga otra expresión, libera su hijo aquí
+        break;
+
+    case JAMZ_AST_PROGRAM:
+        for (size_t i = 0; i < node->block.count; ++i)
+        {
+            free_ast(node->block.statements[i]);
+        }
+        free(node->block.statements);
+        break;
+    }
+
+    free(node);
 }

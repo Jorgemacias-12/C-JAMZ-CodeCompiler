@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "lexer.h"
+#include "parser.h"
 
 #define COLOR_RESET "\033[0m"
 #define COLOR_BLUE "\033[94m"
@@ -41,5 +42,8 @@ const char *get_filename_ext(const char *filename);
 // Lexer utils
 const char *jamz_token_type_to_string(JAMZTokenType type);
 void print_tokens(const JAMZTokenList *list);
+
+// Parser utils
+void print_ast(const JAMZASTNode *node, int indent);
 
 #endif

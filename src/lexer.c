@@ -32,7 +32,7 @@ static bool is_operator_char(char c)
     return c == '+' || c == '-' || c == '*' || c == '/' || c == '=';
 }
 
-static bool is_keyword(const char *lexeme, JAMZTokenType *out_type)
+static bool resolve_keyword(const char *lexeme, JAMZTokenType *out_type)
 {
     if (strcmp(lexeme, "int") == 0)
     {
@@ -44,8 +44,38 @@ static bool is_keyword(const char *lexeme, JAMZTokenType *out_type)
         *out_type = JAMZ_TOKEN_RETURN;
         return true;
     }
+    if (strcmp(lexeme, "main") == 0)
+    {
+        *out_type = JAMZ_TOKEN_MAIN;
+        return true;
+    }
     return false;
 }
+// static bool is_keyword(const char *lexeme, JAMZTokenType *out_type)
+// {
+//     if (strcmp(lexeme, "int") == 0)
+//     {
+//         *out_type = JAMZ_TOKEN_INT;
+//         return true;
+//     }
+//     if (strcmp(lexeme, "return") == 0)
+//     {
+//         *out_type = JAMZ_TOKEN_RETURN;
+//         return true;
+//     }
+//     return false;
+// }
+
+// static bool is_main(const char *lexeme, JAMZTokenType *out_type)
+// {
+//     if (strcmp(lexeme, "main") == 0)
+//     {
+//         *out_type = JAMZ_TOKEN_MAIN;
+//         return true;
+//     }
+
+//     return false;
+// }
 
 JAMZTokenList *lexer_analyze(const char *source)
 {
@@ -97,8 +127,10 @@ JAMZTokenList *lexer_analyze(const char *source)
                 current++;
             int len = current - start;
             char *lexeme = strndup_impl(start, len);
+
             JAMZTokenType type = JAMZ_TOKEN_IDENTIFIER;
-            is_keyword(lexeme, &type);
+            resolve_keyword(lexeme, &type);
+
             add_token(list, make_token(type, lexeme, line, col));
             free(lexeme);
             col += len;

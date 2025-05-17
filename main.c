@@ -68,12 +68,27 @@ int main(int argc, char *argv[])
 
     print_tokens(tokens);
 
+    printf("\nThe parser has the following AST:\n\n");
+
+    JAMZASTNode *ast = parser_parse(tokens);
+
+    if (!ast)
+    {
+        push_error("[ERROR] The parser result was null.\n");
+        exit_code = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    print_ast(ast, 1);
 cleanup:
     if (tokens != NULL)
         free_tokens(tokens);
 
     if (source_code != NULL)
         free(source_code);
+
+    if (ast != NULL)
+        free_ast(ast);
 
     if (get_error_count() > 0)
     {
