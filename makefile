@@ -20,7 +20,8 @@ all: $(OUTPUT)
 
 # Build executable
 $(OUTPUT): $(MAIN) $(OBJS) | $(BIN_DIR)
-	$(CC) $(CFLAGS) -o $@ $^
+	@echo "Compiling program"
+	@$(CC) $(CFLAGS) -o $@ $^
 
 # Compile source files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
