@@ -64,6 +64,10 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
 
+    printf("\nLexer analysis has ecountered the following tokens:\n\n");
+
+    print_tokens(tokens);
+
 cleanup:
     if (tokens != NULL)
         free_tokens(tokens);
