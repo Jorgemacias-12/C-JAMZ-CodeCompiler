@@ -1,0 +1,19 @@
+[
+  { "name": "if", "type": "keyword", "category": "control" },
+  { "name": "else", "type": "keyword", "category": "control" },
+  { "name": "while", "type": "keyword", "category": "control" },
+  { "name": "for", "type": "keyword", "category": "control" },
+  { "name": "switch", "type": "keyword", "category": "control" },
+  { "name": "case", "type": "keyword", "category": "control" },
+  { "name": "break", "type": "keyword", "category": "control" },
+  { "name": "continue", "type": "keyword", "category": "control" },
+
+  { "name": "int", "type": "keyword", "category": "type" },
+  { "name": "float", "type": "keyword", "category": "type" },
+  { "name": "char", "type": "keyword", "category": "type" },
+  { "name": "void", "type": "keyword", "category": "type" },
+  { "name": "struct", "type": "keyword", "category": "type" },
+  { "name": "typedef", "type": "keyword", "category": "type" },
+
+  { "name": "return", "type": "keyword", "category": "function" }
+]
