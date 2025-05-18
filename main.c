@@ -112,6 +112,12 @@ int main(int argc, char *argv[])
     // Análisis semántico
     analyze_semantics(ast, keywords, keyword_count);
 
+    // Mensaje si no hubo errores semánticos
+    if (get_error_count() == 0)
+    {
+        printf("\n[OK] Análisis semántico completado sin errores.\n");
+    }
+
 cleanup:
     if (tokens != NULL)
         free_tokens(tokens);

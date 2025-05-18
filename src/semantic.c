@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdio.h>
 #include "semantic.h"
 #include "parser.h"
 #include "utils.h"
@@ -228,11 +229,30 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
     }
 }
 
+// Imprime la tabla de símbolos como un árbol (AST)
+void print_symbol_table_ast(const SimpleSymbolTable *table, int indent)
+{
+    if (!table)
+        return;
+    for (const SimpleSymbol *sym = table->symbols; sym; sym = sym->next)
+    {
+        for (int i = 0; i < indent; ++i)
+            printf("  ");
+        printf("|- %s : %s\n", sym->name, sym->type);
+    }
+    if (table->parent)
+    {
+        print_symbol_table_ast(table->parent, indent + 1);
+    }
+}
+
 void analyze_semantics(JAMZASTNode *ast, Keyword *keywords, int keyword_count)
 {
     SimpleSymbolTable *global = malloc(sizeof(SimpleSymbolTable));
     global->symbols = NULL;
     global->parent = NULL;
     analyze_node_with_symbols(ast, keywords, keyword_count, global);
+    printf("\nVariables y tipos encontrados por el análisis semántico (formato árbol):\n");
+    print_symbol_table_ast(global, 0);
     free_symbol_table(global);
 }
