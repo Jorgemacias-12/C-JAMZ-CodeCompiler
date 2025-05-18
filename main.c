@@ -99,6 +99,9 @@ int main(int argc, char *argv[])
                keywords[i].name, keywords[i].type, keywords[i].category);
     }
 
+    // Análisis semántico
+    analyze_semantics(ast, keywords, keyword_count);
+
 cleanup:
     if (tokens != NULL)
         free_tokens(tokens);

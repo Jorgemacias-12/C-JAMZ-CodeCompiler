@@ -192,6 +192,8 @@ const char *jamz_token_type_to_string(JAMZTokenType type)
         return "RBRACE";
     case JAMZ_TOKEN_STRING:
         return "STRING";
+    case JAMZ_TOKEN_CHAR:
+        return "CHAR";
     case JAMZ_TOKEN_EOF:
         return "EOF";
     case JAMZ_TOKEN_UNKNOWN:
@@ -286,7 +288,7 @@ static void print_ast_internal(const JAMZASTNode *node, int indent, bool is_last
     case JAMZ_AST_BINARY:
     {
         char buffer[64];
-        snprintf(buffer, sizeof(buffer), "Binary '%s'", node->binary.operator.lexeme);
+        snprintf(buffer, sizeof(buffer), "Binary '%s'", node->binary.op ? node->binary.op : "");
         print_node_info(node, buffer);
         print_ast_internal(node->binary.left, indent + 1, false);
         print_ast_internal(node->binary.right, indent + 1, true);
@@ -296,7 +298,7 @@ static void print_ast_internal(const JAMZASTNode *node, int indent, bool is_last
     case JAMZ_AST_LITERAL:
     {
         char buffer[64];
-        snprintf(buffer, sizeof(buffer), "Literal '%s'", node->literal.value.lexeme);
+        snprintf(buffer, sizeof(buffer), "Literal '%s'", node->literal.value ? node->literal.value : "");
         print_node_info(node, buffer);
         break;
     }
@@ -304,7 +306,7 @@ static void print_ast_internal(const JAMZASTNode *node, int indent, bool is_last
     case JAMZ_AST_VARIABLE:
     {
         char buffer[64];
-        snprintf(buffer, sizeof(buffer), "Variable '%s'", node->variable.name.lexeme);
+        snprintf(buffer, sizeof(buffer), "Variable '%s'", node->variable.var_name ? node->variable.var_name : "");
         print_node_info(node, buffer);
         break;
     }
@@ -348,6 +350,22 @@ void free_ast(JAMZASTNode *node)
     case JAMZ_AST_BINARY:
         free_ast(node->binary.left);
         free_ast(node->binary.right);
+        break;
+
+    case JAMZ_AST_DECLARATION:
+        if (node->declaration.type_name)
+            free(node->declaration.type_name);
+        if (node->declaration.var_name)
+            free(node->declaration.var_name);
+        if (node->declaration.initializer)
+            free_ast(node->declaration.initializer);
+        break;
+
+    case JAMZ_AST_ASSIGNMENT:
+        if (node->assignment.var_name)
+            free(node->assignment.var_name);
+        if (node->assignment.value)
+            free_ast(node->assignment.value);
         break;
 
     case JAMZ_AST_LITERAL:

@@ -7,6 +7,8 @@ typedef enum
 {
     JAMZ_AST_PROGRAM,
     JAMZ_AST_BLOCK,
+    JAMZ_AST_DECLARATION,
+    JAMZ_AST_ASSIGNMENT,
     JAMZ_AST_RETURN,
     JAMZ_AST_IF,
     JAMZ_AST_EXPRESSION,
@@ -15,59 +17,72 @@ typedef enum
     JAMZ_AST_VARIABLE
 } JAMZASTNodeType;
 
-typedef struct JAMZASTNode JAMZASTNode;
-
+// Declaración de variable
 typedef struct
 {
-    JAMZASTNode *condition;
-    JAMZASTNode *then_branch;
-    JAMZASTNode *else_branch; // Can be null
-} JAMZIfStatement;
+    char *type_name; // "int", "char", etc.
+    char *var_name;
+    struct JAMZASTNode *initializer; // Puede ser NULL
+} JAMZDeclaration;
 
+// Asignación
 typedef struct
 {
-    JAMZASTNode **statements;
-    size_t count;
-} JAMZBlock;
+    char *var_name;
+    struct JAMZASTNode *value;
+} JAMZAssignment;
 
+// Expresión binaria
 typedef struct
 {
-    JAMZASTNode *value;
-} JAMZReturnStatement;
-
-typedef struct
-{
-    JAMZASTNode *left;
-    JAMZToken operator;
-    JAMZASTNode *right;
+    struct JAMZASTNode *left;
+    char *op; // "+", "-", "*", "/"
+    struct JAMZASTNode *right;
 } JAMZBinaryExpr;
 
+// Variable
 typedef struct
 {
-    JAMZToken name;
+    char *var_name;
 } JAMZVariable;
 
+// Literal
 typedef struct
 {
-    JAMZToken value;
+    char *value;              // número, string, etc.
+    JAMZTokenType token_type; // <--- Añadido: tipo de token original (JAMZ_TOKEN_NUMBER, JAMZ_TOKEN_STRING, etc)
 } JAMZLiteral;
 
-struct JAMZASTNode
+// Nodo principal del AST
+typedef struct JAMZASTNode
 {
     JAMZASTNodeType type;
-
     union
     {
-        JAMZIfStatement if_stmt;
-        JAMZBlock block;
-        JAMZReturnStatement return_stmt;
+        JAMZDeclaration declaration;
+        JAMZAssignment assignment;
         JAMZBinaryExpr binary;
-        JAMZLiteral literal;
         JAMZVariable variable;
+        JAMZLiteral literal;
+        struct
+        {
+            struct JAMZASTNode **statements;
+            size_t count;
+        } block;
+        struct
+        {
+            struct JAMZASTNode *value;
+        } return_stmt;
+        struct
+        {
+            struct JAMZASTNode *condition;
+            struct JAMZASTNode *then_branch;
+            struct JAMZASTNode *else_branch;
+        } if_stmt;
     };
     int line;
     int column;
-};
+} JAMZASTNode;
 
 typedef struct
 {

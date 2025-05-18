@@ -39,6 +39,11 @@ static bool resolve_keyword(const char *lexeme, JAMZTokenType *out_type)
         *out_type = JAMZ_TOKEN_INT;
         return true;
     }
+    if (strcmp(lexeme, "char") == 0) // <-- Añadido para soportar 'char' como tipo
+    {
+        *out_type = JAMZ_TOKEN_CHAR;
+        return true;
+    }
     if (strcmp(lexeme, "return") == 0)
     {
         *out_type = JAMZ_TOKEN_RETURN;
@@ -51,31 +56,6 @@ static bool resolve_keyword(const char *lexeme, JAMZTokenType *out_type)
     }
     return false;
 }
-// static bool is_keyword(const char *lexeme, JAMZTokenType *out_type)
-// {
-//     if (strcmp(lexeme, "int") == 0)
-//     {
-//         *out_type = JAMZ_TOKEN_INT;
-//         return true;
-//     }
-//     if (strcmp(lexeme, "return") == 0)
-//     {
-//         *out_type = JAMZ_TOKEN_RETURN;
-//         return true;
-//     }
-//     return false;
-// }
-
-// static bool is_main(const char *lexeme, JAMZTokenType *out_type)
-// {
-//     if (strcmp(lexeme, "main") == 0)
-//     {
-//         *out_type = JAMZ_TOKEN_MAIN;
-//         return true;
-//     }
-
-//     return false;
-// }
 
 JAMZTokenList *lexer_analyze(const char *source)
 {

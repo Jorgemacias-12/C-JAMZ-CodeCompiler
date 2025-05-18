@@ -40,6 +40,24 @@ static inline bool match(JAMZParser *parser, JAMZTokenType type)
 static JAMZASTNode *parse_declaration(JAMZParser *parser);
 static JAMZASTNode *parse_block(JAMZParser *parser);
 static JAMZASTNode *parse_program_node(JAMZParser *parser);
+static JAMZASTNode *parse_expression(JAMZParser *parser);
+static JAMZASTNode *parse_assignment(JAMZParser *parser);
+static JAMZASTNode *parse_primary(JAMZParser *parser);
+static JAMZASTNode *parse_binary_expression(JAMZParser *parser, int min_prec);
+
+// Tabla de precedencia simple
+static int get_precedence(JAMZTokenType type)
+{
+    switch (type)
+    {
+    case JAMZ_TOKEN_OPERATOR:
+        // Solo + y * por ahora
+        // Puedes mejorar esto para más operadores
+        return 1;
+    default:
+        return 0;
+    }
+}
 
 JAMZASTNode *parser_parse(JAMZTokenList *tokens)
 {
@@ -180,33 +198,179 @@ static JAMZASTNode *parse_block(JAMZParser *parser)
 
 static JAMZASTNode *parse_declaration(JAMZParser *parser)
 {
+    // Declaración de variable: tipo nombre [= expr] ;
+    if ((check(parser, JAMZ_TOKEN_INT)) ||
+        (check(parser, JAMZ_TOKEN_CHAR)) ||
+        (check(parser, JAMZ_TOKEN_IDENTIFIER) && (strcmp(current_token(parser).lexeme, "int") == 0 ||
+                                                  strcmp(current_token(parser).lexeme, "char") == 0)))
+    {
+        JAMZToken type_token = advance(parser);
+        // Soporte básico para punteros: ignorar '*'
+        if (check(parser, JAMZ_TOKEN_OPERATOR) && strcmp(current_token(parser).lexeme, "*") == 0)
+        {
+            advance(parser); // Ignora el '*'
+            // Nota: No se almacena en el AST, solo para que compile el ejemplo
+        }
+        if (!check(parser, JAMZ_TOKEN_IDENTIFIER))
+        {
+            push_error("Expected identifier after type in declaration.");
+            return NULL;
+        }
+        JAMZToken name_token = advance(parser);
+        JAMZASTNode *initializer = NULL;
+        if (check(parser, JAMZ_TOKEN_OPERATOR) && strcmp(current_token(parser).lexeme, "=") == 0)
+        {
+            advance(parser);
+            initializer = parse_expression(parser);
+        }
+        if (!match(parser, JAMZ_TOKEN_SEMICOLON))
+        {
+            push_error("Expected ';' after declaration.");
+            if (initializer)
+                free_ast(initializer);
+            return NULL;
+        }
+        JAMZASTNode *decl = calloc(1, sizeof(JAMZASTNode));
+        decl->type = JAMZ_AST_DECLARATION;
+        decl->line = type_token.line;
+        decl->column = type_token.column;
+        decl->declaration.type_name = strdup(type_token.lexeme);
+        decl->declaration.var_name = strdup(name_token.lexeme);
+        decl->declaration.initializer = initializer;
+        return decl;
+    }
+    // Asignación: nombre = expr ;
+    if (check(parser, JAMZ_TOKEN_IDENTIFIER))
+    {
+        JAMZToken name_token = advance(parser);
+        if (check(parser, JAMZ_TOKEN_OPERATOR) && strcmp(current_token(parser).lexeme, "=") == 0)
+        {
+            advance(parser);
+            JAMZASTNode *value = parse_expression(parser);
+            if (!match(parser, JAMZ_TOKEN_SEMICOLON))
+            {
+                push_error("Expected ';' after assignment.");
+                if (value)
+                    free_ast(value);
+                return NULL;
+            }
+            JAMZASTNode *assign = calloc(1, sizeof(JAMZASTNode));
+            assign->type = JAMZ_AST_ASSIGNMENT;
+            assign->line = name_token.line;
+            assign->column = name_token.column;
+            assign->assignment.var_name = strdup(name_token.lexeme);
+            assign->assignment.value = value;
+            return assign;
+        }
+        else
+        {
+            push_error("Expected '=' after identifier for assignment.");
+            return NULL;
+        }
+    }
+    // Return
     if (match(parser, JAMZ_TOKEN_RETURN))
     {
         JAMZToken return_token = parser->tokens->tokens[parser->current - 1];
-        // Por ahora no parseamos expresión, solo NULL
-        JAMZASTNode *node = malloc(sizeof(JAMZASTNode));
-        if (!node)
+        JAMZASTNode *value = NULL;
+        if (!check(parser, JAMZ_TOKEN_SEMICOLON))
         {
-            push_error("Out of memory creating return node.");
+            value = parse_expression(parser);
+        }
+        if (!match(parser, JAMZ_TOKEN_SEMICOLON))
+        {
+            push_error("Expected ';' after return statement.");
+            if (value)
+                free_ast(value);
             return NULL;
         }
+        JAMZASTNode *node = malloc(sizeof(JAMZASTNode));
         node->type = JAMZ_AST_RETURN;
         node->line = return_token.line;
         node->column = return_token.column;
-        node->return_stmt.value = NULL;
+        node->return_stmt.value = value;
         return node;
     }
-
-    JAMZToken tok = advance(parser);
-    JAMZASTNode *lit = malloc(sizeof(JAMZASTNode));
-    if (!lit)
+    // Si nada coincide, intenta parsear una expresión (por robustez)
+    JAMZASTNode *expr = parse_expression(parser);
+    if (expr && match(parser, JAMZ_TOKEN_SEMICOLON))
     {
-        push_error("Out of memory creating literal node.");
-        return NULL;
+        return expr;
     }
-    lit->type = JAMZ_AST_LITERAL;
-    lit->line = tok.line;
-    lit->column = tok.column;
-    lit->literal.value = tok;
-    return lit;
+    push_error("Unknown statement or declaration.");
+    return NULL;
+}
+
+static JAMZASTNode *parse_expression(JAMZParser *parser)
+{
+    return parse_assignment(parser);
+}
+
+static JAMZASTNode *parse_assignment(JAMZParser *parser)
+{
+    JAMZASTNode *left = parse_binary_expression(parser, 0);
+    if (left && check(parser, JAMZ_TOKEN_OPERATOR) && strcmp(current_token(parser).lexeme, "=") == 0)
+    {
+        advance(parser);
+        JAMZASTNode *value = parse_assignment(parser);
+        JAMZASTNode *assign = malloc(sizeof(JAMZASTNode));
+        assign->type = JAMZ_AST_ASSIGNMENT;
+        assign->assignment.var_name = strdup(left->variable.var_name);
+        assign->assignment.value = value;
+        assign->line = left->line;
+        assign->column = left->column;
+        free_ast(left);
+        return assign;
+    }
+    return left;
+}
+
+static JAMZASTNode *parse_binary_expression(JAMZParser *parser, int min_prec)
+{
+    JAMZASTNode *left = parse_primary(parser);
+    while (check(parser, JAMZ_TOKEN_OPERATOR))
+    {
+        JAMZToken op_token = current_token(parser);
+        int prec = get_precedence(op_token.type);
+        if (prec < min_prec)
+            break;
+        advance(parser);
+        JAMZASTNode *right = parse_primary(parser);
+        JAMZASTNode *bin = malloc(sizeof(JAMZASTNode));
+        bin->type = JAMZ_AST_BINARY;
+        bin->binary.left = left;
+        bin->binary.op = strdup(op_token.lexeme);
+        bin->binary.right = right;
+        bin->line = op_token.line;
+        bin->column = op_token.column;
+        left = bin;
+    }
+    return left;
+}
+
+static JAMZASTNode *parse_primary(JAMZParser *parser)
+{
+    if (check(parser, JAMZ_TOKEN_IDENTIFIER))
+    {
+        JAMZToken tok = advance(parser);
+        JAMZASTNode *var = malloc(sizeof(JAMZASTNode));
+        var->type = JAMZ_AST_VARIABLE;
+        var->variable.var_name = strdup(tok.lexeme);
+        var->line = tok.line;
+        var->column = tok.column;
+        return var;
+    }
+    if (check(parser, JAMZ_TOKEN_NUMBER) || check(parser, JAMZ_TOKEN_STRING))
+    {
+        JAMZToken tok = advance(parser);
+        JAMZASTNode *lit = malloc(sizeof(JAMZASTNode));
+        lit->type = JAMZ_AST_LITERAL;
+        lit->literal.value = strdup(tok.lexeme);
+        lit->literal.token_type = tok.type; // <--- Guardar tipo de token original
+        lit->line = tok.line;
+        lit->column = tok.column;
+        return lit;
+    }
+    push_error("Unexpected token in expression.");
+    return NULL;
 }
