@@ -81,6 +81,16 @@ int main(int argc, char *argv[])
 
     print_ast(ast, 0);
 
+    // Operaciones: ejemplo de suma y tipo
+    printf("\nOperaciones de ejemplo:\n\n");
+    // Buscar una declaración de variable 'a' y mostrar su tipo
+    // Buscar una declaración de variable 'string' y mostrar su tipo
+    // (Esto es solo demostrativo, el análisis real se hace en semantic.c)
+    //
+    // Si quieres mostrar el tipo de cada variable declarada, puedes recorrer el AST aquí
+    //
+    // El análisis semántico ya revisa tipos y muestra errores, así que aquí solo mostramos info
+
     int keyword_count;
     Keyword *keywords = load_keywords("data/keywords.json", &keyword_count);
 

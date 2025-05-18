@@ -2,6 +2,7 @@
 #include "utils.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 static inline JAMZToken current_token(JAMZParser *parser)
 {
@@ -205,15 +206,20 @@ static JAMZASTNode *parse_declaration(JAMZParser *parser)
                                                   strcmp(current_token(parser).lexeme, "char") == 0)))
     {
         JAMZToken type_token = advance(parser);
-        // Soporte básico para punteros: ignorar '*'
+        char *type_name = strdup(type_token.lexeme);
+        // Soporte para punteros: si hay '*', concatenar al tipo
         if (check(parser, JAMZ_TOKEN_OPERATOR) && strcmp(current_token(parser).lexeme, "*") == 0)
         {
             advance(parser); // Ignora el '*'
-            // Nota: No se almacena en el AST, solo para que compile el ejemplo
+            char *ptr_type = malloc(strlen(type_name) + 2);
+            sprintf(ptr_type, "%s*", type_name);
+            free(type_name);
+            type_name = ptr_type;
         }
         if (!check(parser, JAMZ_TOKEN_IDENTIFIER))
         {
             push_error("Expected identifier after type in declaration.");
+            free(type_name);
             return NULL;
         }
         JAMZToken name_token = advance(parser);
@@ -228,13 +234,14 @@ static JAMZASTNode *parse_declaration(JAMZParser *parser)
             push_error("Expected ';' after declaration.");
             if (initializer)
                 free_ast(initializer);
+            free(type_name);
             return NULL;
         }
         JAMZASTNode *decl = calloc(1, sizeof(JAMZASTNode));
         decl->type = JAMZ_AST_DECLARATION;
         decl->line = type_token.line;
         decl->column = type_token.column;
-        decl->declaration.type_name = strdup(type_token.lexeme);
+        decl->declaration.type_name = type_name;
         decl->declaration.var_name = strdup(name_token.lexeme);
         decl->declaration.initializer = initializer;
         return decl;

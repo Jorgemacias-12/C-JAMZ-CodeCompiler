@@ -9,6 +9,7 @@
 typedef struct SimpleSymbol
 {
     char *name;
+    char *type; // Nuevo: tipo como string (ej: "int", "char", ...)
     struct SimpleSymbol *next;
 } SimpleSymbol;
 
@@ -31,10 +32,11 @@ static SimpleSymbol *find_symbol(SimpleSymbolTable *table, const char *name)
     return NULL;
 }
 
-static void add_symbol(SimpleSymbolTable *table, const char *name)
+static void add_symbol(SimpleSymbolTable *table, const char *name, const char *type)
 {
     SimpleSymbol *sym = malloc(sizeof(SimpleSymbol));
     sym->name = strdup(name);
+    sym->type = strdup(type);
     sym->next = table->symbols;
     table->symbols = sym;
 }
@@ -48,6 +50,7 @@ static void free_symbol_table(SimpleSymbolTable *table)
         {
             SimpleSymbol *next = sym->next;
             free(sym->name);
+            free(sym->type);
             free(sym);
             sym = next;
         }
@@ -104,18 +107,44 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
         }
         break;
     case JAMZ_AST_DECLARATION:
-        add_symbol(table, ast->declaration.var_name);
+        add_symbol(table, ast->declaration.var_name, ast->declaration.type_name);
         if (ast->declaration.initializer)
             analyze_node_with_symbols(ast->declaration.initializer, keywords, keyword_count, table);
         break;
     case JAMZ_AST_ASSIGNMENT:
-        if (!find_symbol(table, ast->assignment.var_name))
+    {
+        SimpleSymbol *sym = find_symbol(table, ast->assignment.var_name);
+        if (!sym)
         {
             push_error("Variable '%s' not declared (line %d, col %d)\n", ast->assignment.var_name, ast->line, ast->column);
         }
-        if (ast->assignment.value)
+        else if (ast->assignment.value)
+        {
+            // Comprobar tipo del valor asignado
+            const char *rhs_type = NULL;
+            if (ast->assignment.value->type == JAMZ_AST_LITERAL)
+            {
+                JAMZTokenType ttype = ast->assignment.value->literal.token_type;
+                if (ttype == JAMZ_TOKEN_NUMBER)
+                    rhs_type = "int";
+                else if (ttype == JAMZ_TOKEN_STRING)
+                    rhs_type = "char*";
+            }
+            else if (ast->assignment.value->type == JAMZ_AST_VARIABLE)
+            {
+                SimpleSymbol *rhs_sym = find_symbol(table, ast->assignment.value->variable.var_name);
+                if (rhs_sym)
+                    rhs_type = rhs_sym->type;
+            }
+            if (rhs_type && strcmp(sym->type, rhs_type) != 0)
+            {
+                push_error("Type mismatch: cannot assign '%s' to variable '%s' of type '%s' (line %d, col %d)\n",
+                           rhs_type, ast->assignment.var_name, sym->type, ast->line, ast->column);
+            }
             analyze_node_with_symbols(ast->assignment.value, keywords, keyword_count, table);
+        }
         break;
+    }
     case JAMZ_AST_BLOCK:
     case JAMZ_AST_PROGRAM:
     {
@@ -142,11 +171,58 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
             analyze_node_with_symbols(ast->return_stmt.value, keywords, keyword_count, table);
         break;
     case JAMZ_AST_BINARY:
+    {
+        // Comprobación de tipos en operaciones binarias
+        const char *left_type = NULL;
+        const char *right_type = NULL;
         if (ast->binary.left)
+        {
             analyze_node_with_symbols(ast->binary.left, keywords, keyword_count, table);
+            if (ast->binary.left->type == JAMZ_AST_LITERAL)
+            {
+                JAMZTokenType ttype = ast->binary.left->literal.token_type;
+                if (ttype == JAMZ_TOKEN_NUMBER)
+                    left_type = "int";
+                else if (ttype == JAMZ_TOKEN_STRING)
+                    left_type = "char*";
+            }
+            else if (ast->binary.left->type == JAMZ_AST_VARIABLE)
+            {
+                SimpleSymbol *sym = find_symbol(table, ast->binary.left->variable.var_name);
+                if (sym)
+                    left_type = sym->type;
+            }
+        }
         if (ast->binary.right)
+        {
             analyze_node_with_symbols(ast->binary.right, keywords, keyword_count, table);
+            if (ast->binary.right->type == JAMZ_AST_LITERAL)
+            {
+                JAMZTokenType ttype = ast->binary.right->literal.token_type;
+                if (ttype == JAMZ_TOKEN_NUMBER)
+                    right_type = "int";
+                else if (ttype == JAMZ_TOKEN_STRING)
+                    right_type = "char*";
+            }
+            else if (ast->binary.right->type == JAMZ_AST_VARIABLE)
+            {
+                SimpleSymbol *sym = find_symbol(table, ast->binary.right->variable.var_name);
+                if (sym)
+                    right_type = sym->type;
+            }
+        }
+        // Solo permitimos operaciones entre int por ahora
+        if (left_type && right_type && strcmp(left_type, right_type) != 0)
+        {
+            push_error("Type mismatch in binary operation: '%s' vs '%s' (line %d, col %d)\n",
+                       left_type, right_type, ast->line, ast->column);
+        }
+        else if (left_type && strcmp(left_type, "int") != 0)
+        {
+            push_error("Only 'int' type supported in binary operations (line %d, col %d)\n", ast->line, ast->column);
+        }
         break;
+    }
     default:
         break;
     }
