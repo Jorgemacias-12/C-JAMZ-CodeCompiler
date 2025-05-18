@@ -4,6 +4,7 @@
 #include "parser.h"
 #include "utils.h"
 #include "lexer.h"
+#include "cJSON.h"
 
 static char error_stack[MAX_ERRORS][MAX_ERROR_LEN];
 static size_t error_count;
@@ -368,4 +369,62 @@ void free_ast(JAMZASTNode *node)
     }
 
     free(node);
+}
+
+Keyword *load_keywords(const char *path, int *out_count)
+{
+    FILE *file = fopen(path, "rb");
+
+    if (!file)
+    {
+        push_error("[Error] When opening keywords table file\n");
+        return NULL;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long length = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    char *content = malloc(length + 1);
+
+    if (fread(content, 1, length, file) != length)
+    {
+        push_error("[ERROR] Failed to read complete content from %s\n", path);
+        fclose(file);
+        free(content);
+        return NULL;
+    }
+
+    content[length] = '\0';
+    fclose(file);
+
+    cJSON *json = cJSON_Parse(content);
+    free(content);
+
+    if (!json)
+    {
+        push_error("[Error] When parsing the keywords table JSON %s\n", cJSON_GetErrorPtr());
+        return NULL;
+    }
+
+    int size = cJSON_GetArraySize(json);
+    Keyword *keywords = malloc(size * sizeof(Keyword));
+
+    for (int i = 0; i < size; i++)
+    {
+        cJSON *element = cJSON_GetArrayItem(json, i);
+
+        const char *name = cJSON_GetObjectItem(element, "name")->valuestring;
+        const char *type = cJSON_GetObjectItem(element, "type")->valuestring;
+        const char *category = cJSON_GetObjectItem(element, "category")->valuestring;
+
+        keywords[i].name = strdup(name);
+        keywords[i].type = strdup(type);
+        keywords[i].category = strdup(category);
+    }
+
+    cJSON_Delete(json);
+
+    *out_count = size;
+    return keywords;
 }

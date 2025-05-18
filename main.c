@@ -79,7 +79,26 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
 
-    print_ast(ast, 1);
+    print_ast(ast, 0);
+
+    int keyword_count;
+    Keyword *keywords = load_keywords("data/keywords.json", &keyword_count);
+
+    if (!keywords)
+    {
+        push_error("[ERROR] Getting keywords for the semantic analysis.\n");
+        exit_code = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    printf("\nKeywords loaded globally.\n\n");
+
+    for (int i = 0; i < keyword_count; i++)
+    {
+        printf("Name: %s, Type: %s, Category: %s\n",
+               keywords[i].name, keywords[i].type, keywords[i].category);
+    }
+
 cleanup:
     if (tokens != NULL)
         free_tokens(tokens);
@@ -95,6 +114,14 @@ cleanup:
         print_error_stack();
         clear_error_stack();
     }
+
+    for (int i = 0; i < keyword_count; i++)
+    {
+        free(keywords[i].name);
+        free(keywords[i].type);
+        free(keywords[i].category);
+    }
+    free(keywords);
 
     return exit_code;
 }

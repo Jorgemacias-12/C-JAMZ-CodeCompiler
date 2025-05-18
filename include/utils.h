@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include "lexer.h"
 #include "parser.h"
+#include "semantic.h"
+#include "cJSON.h"
 
 #define COLOR_RESET "\033[0m"
 #define COLOR_BLUE "\033[94m"
@@ -45,5 +47,8 @@ void print_tokens(const JAMZTokenList *list);
 
 // Parser utils
 void print_ast(const JAMZASTNode *node, int indent);
+
+// Semantic utils
+Keyword *load_keywords(const char *path, int *out_count);
 
 #endif
