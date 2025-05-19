@@ -104,8 +104,12 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < keyword_count; i++)
     {
-        printf("Name: %s, Type: %s, Category: %s\n",
-               keywords[i].name, keywords[i].type, keywords[i].category);
+        print_color("Name: ", JAMZ_COLOR_CYAN, false);
+        print_color(keywords[i].name, JAMZ_COLOR_BLUE, false);
+        print_color(", Type: ", JAMZ_COLOR_CYAN, false);
+        print_color(keywords[i].type, JAMZ_COLOR_GREEN, false);
+        print_color(", Category: ", JAMZ_COLOR_CYAN, false);
+        print_color(keywords[i].category, JAMZ_COLOR_YELLOW, true);
     }
 
     analyze_semantics(ast, keywords, keyword_count);

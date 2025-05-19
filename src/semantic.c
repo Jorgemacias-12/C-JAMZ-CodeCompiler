@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <locale.h>
 #include <stdarg.h>
+#include <windows.h> // Para manejar colores en la consola
 #include "semantic.h"
 #include "parser.h"
 #include "utils.h"
@@ -124,6 +125,8 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
         else if (strcmp(ast->declaration.type_name, "float") == 0)
             type = SYMBOL_FLOAT;
         else if (strcmp(ast->declaration.type_name, "string") == 0)
+            type = SYMBOL_STRING;
+        else if (strcmp(ast->declaration.type_name, "char") == 0)
             type = SYMBOL_STRING;
         else
         {
@@ -261,12 +264,21 @@ void print_symbol_table_ast(const SymbolTable *table, int indent)
     {
         return;
     }
+
+    set_console_color(FOREGROUND_BLUE | FOREGROUND_INTENSITY); // Título en azul brillante
+    for (int i = 0; i < indent; ++i)
+        printf("  ");
+    printf("\nSymbol Table:\n");
+
+    set_console_color(FOREGROUND_GREEN | FOREGROUND_INTENSITY); // Símbolos en verde brillante
     for (const Symbol *sym = table->symbols; sym; sym = sym->next)
     {
         for (int i = 0; i < indent; ++i)
             printf("  ");
         printf("|- %s : %d\n", sym->name, sym->type);
     }
+
+    set_console_color(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE); // Restaurar color predeterminado
 }
 
 // Agregar un indicador para rastrear si la tabla ya fue liberada
@@ -305,5 +317,34 @@ void analyze_semantics(JAMZASTNode *ast, Keyword *keywords, int keyword_count)
     else
     {
         log_debug("[TRACE] Intento de liberar tabla global ya liberada o nula\n");
+    }
+}
+
+// Colorear las keywords y el AST de las keywords usando la función print_color
+static void print_keyword(const char *keyword, const char *category)
+{
+    Color color;
+    if (strcmp(category, "type") == 0)
+        color = JAMZ_COLOR_BLUE;
+    else if (strcmp(category, "control") == 0)
+        color = JAMZ_COLOR_GREEN;
+    else if (strcmp(category, "function") == 0)
+        color = JAMZ_COLOR_YELLOW;
+    else
+        color = JAMZ_COLOR_DEFAULT;
+
+    print_color(keyword, color, false);
+    print_color(" (", JAMZ_COLOR_DEFAULT, false);
+    print_color(category, JAMZ_COLOR_CYAN, false);
+    print_color(")", JAMZ_COLOR_DEFAULT, true);
+}
+
+void print_keywords_ast(Keyword *keywords, int count)
+{
+    log_debug("Imprimiendo AST de keywords\n");
+    for (int i = 0; i < count; i++)
+    {
+        print_color("|- ", JAMZ_COLOR_DEFAULT, false);
+        print_keyword(keywords[i].name, keywords[i].category);
     }
 }
