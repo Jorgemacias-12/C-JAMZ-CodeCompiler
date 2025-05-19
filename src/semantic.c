@@ -37,7 +37,7 @@ void free_symbol_table(SymbolTable *table)
 {
     if (table == NULL || table->is_freed)
     {
-        printf("[LOG] Intento de liberar una tabla ya liberada o nula.\n");
+        log_debug("[LOG] Intento de liberar una tabla ya liberada o nula.\n");
         return;
     }
 
@@ -47,7 +47,7 @@ void free_symbol_table(SymbolTable *table)
         Symbol *next = sym->next;
         if (sym->name != NULL)
         {
-            printf("[LOG] Liberando símbolo: %s\n", sym->name);
+            log_debug("[LOG] Liberando símbolo: %s\n", sym->name);
             free(sym->name);
         }
         free(sym);
@@ -55,7 +55,7 @@ void free_symbol_table(SymbolTable *table)
     }
 
     table->is_freed = true; // Marcar la tabla como liberada
-    printf("[LOG] Tabla de símbolos liberada correctamente.\n");
+    log_debug("[LOG] Tabla de símbolos liberada correctamente.\n");
 }
 
 static bool is_keyword_of_category(const char *name, const char *category, Keyword *keywords, int count)

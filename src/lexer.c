@@ -89,6 +89,42 @@ JAMZTokenList *lexer_analyze(const char *source)
             continue;
         }
 
+        if (*current == '/' && *(current + 1) == '/')
+        {
+            // Comentario de una línea
+            current += 2;
+            while (*current != '\n' && *current != '\0')
+            {
+                current++;
+            }
+            continue;
+        }
+
+        if (*current == '/' && *(current + 1) == '*')
+        {
+            // Comentario de múltiples líneas
+            current += 2;
+            while (!(*current == '*' && *(current + 1) == '/') && *current != '\0')
+            {
+                if (*current == '\n')
+                {
+                    line++;
+                    col = 1;
+                }
+                else
+                {
+                    col++;
+                }
+                current++;
+            }
+            if (*current == '*' && *(current + 1) == '/')
+            {
+                current += 2;
+                col += 2;
+            }
+            continue;
+        }
+
         if (isdigit(*current))
         {
             while (isdigit(*current))
@@ -200,16 +236,16 @@ void free_tokens(JAMZTokenList *list)
     {
         if (list->tokens[i].lexeme != NULL)
         {
-            printf("[LOG] Liberando lexema del token %zu: %s\n", i, list->tokens[i].lexeme);
+            log_debug("[LOG] Liberando lexema del token %zu: %s\n", i, list->tokens[i].lexeme);
             free(list->tokens[i].lexeme);
             list->tokens[i].lexeme = NULL; // Evitar doble liberación
         }
     }
 
-    printf("[LOG] Liberando lista de tokens...\n");
+    log_debug("[LOG] Liberando lista de tokens...\n");
     free(list->tokens);
     list->tokens = NULL; // Evitar doble liberación
 
-    printf("[LOG] Liberando estructura de lista de tokens...\n");
+    log_debug("[LOG] Liberando estructura de lista de tokens...\n");
     free(list);
 }

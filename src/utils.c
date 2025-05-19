@@ -6,6 +6,7 @@
 #include "lexer.h"
 #include "cJSON.h"
 #include <stdarg.h>
+#include <time.h>
 
 static char error_stack[MAX_ERRORS][MAX_ERROR_LEN];
 static size_t error_count;
@@ -505,6 +506,13 @@ void log_debug(const char *format, ...)
             return;
         }
     }
+
+    // Obtener la fecha y hora actual
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    fprintf(log_file, "[%04d-%02d-%02d %02d:%02d:%02d] ",
+            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+            t->tm_hour, t->tm_min, t->tm_sec);
 
     va_list args;
     va_start(args, format);
