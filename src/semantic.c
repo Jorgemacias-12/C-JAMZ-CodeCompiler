@@ -9,24 +9,11 @@
 #include "parser.h"
 #include "utils.h"
 
-typedef struct SimpleSymbol
-{
-    char *name;
-    char *type; // Nuevo: tipo como string (ej: "int", "char", ...)
-    struct SimpleSymbol *next;
-} SimpleSymbol;
-
-typedef struct SimpleSymbolTable
-{
-    SimpleSymbol *symbols;
-    struct SimpleSymbolTable *parent;
-} SimpleSymbolTable;
-
-static SimpleSymbol *find_symbol(SimpleSymbolTable *table, const char *name)
+static Symbol *find_symbol(SymbolTable *table, const char *name)
 {
     for (; table; table = table->parent)
     {
-        for (SimpleSymbol *sym = table->symbols; sym; sym = sym->next)
+        for (Symbol *sym = table->symbols; sym; sym = sym->next)
         {
             if (strcmp(sym->name, name) == 0)
                 return sym;
@@ -35,41 +22,40 @@ static SimpleSymbol *find_symbol(SimpleSymbolTable *table, const char *name)
     return NULL;
 }
 
-static void add_symbol(SimpleSymbolTable *table, const char *name, const char *type)
+// Cambiar asignaciones de sym->type para usar SymbolType en lugar de char *
+static void add_symbol(SymbolTable *table, const char *name, SymbolType type)
 {
-    SimpleSymbol *sym = safe_malloc(sizeof(SimpleSymbol));
+    Symbol *sym = safe_malloc(sizeof(Symbol));
     sym->name = strdup(name);
-    sym->type = strdup(type);
+    sym->type = type; // Usar directamente el enum SymbolType
     sym->next = table->symbols;
     table->symbols = sym;
 }
 
-static void free_symbol_table(SimpleSymbolTable *table)
+// Ajustar free_symbol_table para verificar el campo is_freed antes de liberar la tabla y marcarla como liberada después de la operación
+void free_symbol_table(SymbolTable *table)
 {
-    while (table)
+    if (table == NULL || table->is_freed)
     {
-        log_debug("Liberando tabla de símbolos en %p\n", (void *)table);
-        if (!table->symbols && !table->parent)
-        {
-            log_debug("Tabla de símbolos ya liberada o vacía en %p\n", (void *)table);
-            break;
-        }
-        SimpleSymbol *sym = table->symbols;
-        while (sym)
-        {
-            log_debug("Liberando símbolo: %s\n", sym->name);
-            SimpleSymbol *next = sym->next;
-            free(sym->name);
-            free(sym->type);
-            free(sym);
-            sym = next;
-        }
-        table->symbols = NULL; // Evitar doble liberación
-        SimpleSymbolTable *parent = table->parent;
-        table->parent = NULL; // Desvincular para evitar referencias cíclicas
-        free(table);
-        table = parent;
+        printf("[LOG] Intento de liberar una tabla ya liberada o nula.\n");
+        return;
     }
+
+    Symbol *sym = table->symbols;
+    while (sym != NULL)
+    {
+        Symbol *next = sym->next;
+        if (sym->name != NULL)
+        {
+            printf("[LOG] Liberando símbolo: %s\n", sym->name);
+            free(sym->name);
+        }
+        free(sym);
+        sym = next;
+    }
+
+    table->is_freed = true; // Marcar la tabla como liberada
+    printf("[LOG] Tabla de símbolos liberada correctamente.\n");
 }
 
 static bool is_keyword_of_category(const char *name, const char *category, Keyword *keywords, int count)
@@ -101,7 +87,8 @@ static bool is_control_keyword(const char *name, Keyword *keywords, int count)
     return is_keyword_of_category(name, "control", keywords, count);
 }
 
-static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int keyword_count, SimpleSymbolTable *table)
+// Ajustar comparaciones en analyze_node_with_symbols para usar SymbolType
+static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int keyword_count, SymbolTable *table)
 {
     if (!ast)
     {
@@ -131,57 +118,63 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
         break;
     case JAMZ_AST_DECLARATION:
         log_debug("Declaración de variable: %s de tipo %s\n", ast->declaration.var_name, ast->declaration.type_name);
-        if (!is_valid_type(ast->declaration.type_name, keywords, keyword_count))
+        SymbolType type;
+        if (strcmp(ast->declaration.type_name, "int") == 0)
+            type = SYMBOL_INT;
+        else if (strcmp(ast->declaration.type_name, "float") == 0)
+            type = SYMBOL_FLOAT;
+        else if (strcmp(ast->declaration.type_name, "string") == 0)
+            type = SYMBOL_STRING;
+        else
         {
             push_error("Tipo '%s' no válido para la variable '%s' (línea %d, col %d)\n",
                        ast->declaration.type_name, ast->declaration.var_name, ast->line, ast->column);
+            return;
         }
-        else
-        {
-            add_symbol(table, ast->declaration.var_name, ast->declaration.type_name);
-        }
+        add_symbol(table, ast->declaration.var_name, type);
         if (ast->declaration.initializer)
             analyze_node_with_symbols(ast->declaration.initializer, keywords, keyword_count, table);
         break;
     case JAMZ_AST_ASSIGNMENT:
     {
         log_debug("Asignación a la variable: %s\n", ast->assignment.var_name);
-        SimpleSymbol *sym = find_symbol(table, ast->assignment.var_name);
+        Symbol *sym = find_symbol(table, ast->assignment.var_name);
         if (!sym)
         {
             push_error("Variable '%s' no declarada (línea %d, col %d)\n", ast->assignment.var_name, ast->line, ast->column);
+            return;
         }
-        else if (ast->assignment.value)
+        SymbolType rhs_type;
+        if (ast->assignment.value->type == JAMZ_AST_LITERAL)
         {
-            const char *rhs_type = NULL;
-            if (ast->assignment.value->type == JAMZ_AST_LITERAL)
+            if (ast->assignment.value->literal.token_type == JAMZ_TOKEN_NUMBER)
+                rhs_type = SYMBOL_INT;
+            else if (ast->assignment.value->literal.token_type == JAMZ_TOKEN_STRING)
+                rhs_type = SYMBOL_STRING;
+            else
             {
-                JAMZTokenType ttype = ast->assignment.value->literal.token_type;
-                if (ttype == JAMZ_TOKEN_NUMBER)
-                    rhs_type = "int";
-                else if (ttype == JAMZ_TOKEN_STRING)
-                    rhs_type = "char*";
+                push_error("Tipo de literal no soportado (línea %d, col %d)\n", ast->line, ast->column);
+                return;
             }
-            else if (ast->assignment.value->type == JAMZ_AST_VARIABLE)
-            {
-                SimpleSymbol *rhs_sym = find_symbol(table, ast->assignment.value->variable.var_name);
-                if (rhs_sym)
-                    rhs_type = rhs_sym->type;
-            }
-            if (rhs_type && strcmp(sym->type, rhs_type) != 0)
-            {
-                push_error("Incompatibilidad de tipos: no se puede asignar '%s' a la variable '%s' de tipo '%s' (línea %d, col %d)\n",
-                           rhs_type, ast->assignment.var_name, sym->type, ast->line, ast->column);
-            }
-            analyze_node_with_symbols(ast->assignment.value, keywords, keyword_count, table);
         }
+        else
+        {
+            push_error("Tipo de asignación no soportado (línea %d, col %d)\n", ast->line, ast->column);
+            return;
+        }
+        if (sym->type != rhs_type)
+        {
+            push_error("Incompatibilidad de tipos: no se puede asignar '%d' a la variable '%s' de tipo '%d' (línea %d, col %d)\n",
+                       rhs_type, ast->assignment.var_name, sym->type, ast->line, ast->column);
+        }
+        analyze_node_with_symbols(ast->assignment.value, keywords, keyword_count, table);
         break;
     }
     case JAMZ_AST_BLOCK:
     case JAMZ_AST_PROGRAM:
     {
         log_debug("Creando tabla de símbolos local\n");
-        SimpleSymbolTable *local = safe_malloc(sizeof(SimpleSymbolTable));
+        SymbolTable *local = safe_malloc(sizeof(SymbolTable));
         local->symbols = NULL;
         local->parent = table;
         log_debug("Creando tabla de símbolos local en %p\n", (void *)local);
@@ -189,7 +182,7 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
         {
             analyze_node_with_symbols(ast->block.statements[i], keywords, keyword_count, local);
         }
-        free_symbol_table(local);
+        // free_symbol_table(local);
         break;
     }
     case JAMZ_AST_IF:
@@ -221,9 +214,9 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
             }
             else if (ast->binary.left->type == JAMZ_AST_VARIABLE)
             {
-                SimpleSymbol *sym = find_symbol(table, ast->binary.left->variable.var_name);
+                Symbol *sym = find_symbol(table, ast->binary.left->variable.var_name);
                 if (sym)
-                    left_type = sym->type;
+                    left_type = sym->type == SYMBOL_INT ? "int" : "char*";
             }
         }
         if (ast->binary.right)
@@ -239,9 +232,9 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
             }
             else if (ast->binary.right->type == JAMZ_AST_VARIABLE)
             {
-                SimpleSymbol *sym = find_symbol(table, ast->binary.right->variable.var_name);
+                Symbol *sym = find_symbol(table, ast->binary.right->variable.var_name);
                 if (sym)
-                    right_type = sym->type;
+                    right_type = sym->type == SYMBOL_INT ? "int" : "char*";
             }
         }
         if (left_type && right_type && strcmp(left_type, right_type) != 0)
@@ -262,23 +255,30 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
 }
 
 // Imprime la tabla de símbolos como un árbol (solo la tabla actual, no los padres)
-void print_symbol_table_ast(const SimpleSymbolTable *table, int indent)
+void print_symbol_table_ast(const SymbolTable *table, int indent)
 {
     if (!table)
     {
         return;
     }
-    for (const SimpleSymbol *sym = table->symbols; sym; sym = sym->next)
+    for (const Symbol *sym = table->symbols; sym; sym = sym->next)
     {
         for (int i = 0; i < indent; ++i)
             printf("  ");
-        printf("|- %s : %s\n", sym->name, sym->type);
+        printf("|- %s : %d\n", sym->name, sym->type);
     }
 }
 
+// Agregar un indicador para rastrear si la tabla ya fue liberada
+static bool is_table_freed(SymbolTable *table)
+{
+    return table == NULL || (table->symbols == NULL && table->parent == NULL);
+}
+
+// Modificar analyze_semantics para evitar llamadas redundantes
 void analyze_semantics(JAMZASTNode *ast, Keyword *keywords, int keyword_count)
 {
-    SimpleSymbolTable *global = safe_malloc(sizeof(SimpleSymbolTable));
+    SymbolTable *global = safe_malloc(sizeof(SymbolTable));
     global->symbols = NULL;
     global->parent = NULL;
 
@@ -286,15 +286,24 @@ void analyze_semantics(JAMZASTNode *ast, Keyword *keywords, int keyword_count)
     {
         if (strcmp(keywords[i].category, "type") == 0)
         {
-            add_symbol(global, keywords[i].name, "type");
+            add_symbol(global, keywords[i].name, SYMBOL_TYPE);
         }
         else if (strcmp(keywords[i].category, "function") == 0)
         {
-            add_symbol(global, keywords[i].name, "function");
+            add_symbol(global, keywords[i].name, SYMBOL_FUNCTION);
         }
     }
 
     analyze_node_with_symbols(ast, keywords, keyword_count, global);
     print_symbol_table_ast(global, 0);
-    free_symbol_table(global);
+
+    // Verificar si la tabla ya fue liberada antes de intentar liberarla
+    if (!is_table_freed(global))
+    {
+        free_symbol_table(global);
+    }
+    else
+    {
+        log_debug("[TRACE] Intento de liberar tabla global ya liberada o nula\n");
+    }
 }

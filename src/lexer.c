@@ -196,16 +196,20 @@ void free_tokens(JAMZTokenList *list)
     if (!list)
         return;
 
-    for (size_t i = 0; i < list->error_count; ++i)
+    for (size_t i = 0; i < list->count; ++i)
     {
-        free(list->tokens[i].lexeme);
+        if (list->tokens[i].lexeme != NULL)
+        {
+            printf("[LOG] Liberando lexema del token %zu: %s\n", i, list->tokens[i].lexeme);
+            free(list->tokens[i].lexeme);
+            list->tokens[i].lexeme = NULL; // Evitar doble liberación
+        }
     }
-    free(list->tokens);
 
-    for (size_t i = 0; i < list->error_count; ++i)
-    {
-        free(list->errors[i].message);
-    }
-    free(list->errors);
+    printf("[LOG] Liberando lista de tokens...\n");
+    free(list->tokens);
+    list->tokens = NULL; // Evitar doble liberación
+
+    printf("[LOG] Liberando estructura de lista de tokens...\n");
     free(list);
 }

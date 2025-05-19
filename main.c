@@ -117,29 +117,60 @@ int main(int argc, char *argv[])
 
 cleanup:
     if (tokens != NULL)
+    {
+        printf("[LOG] Liberando memoria de tokens...\n");
         free_tokens(tokens);
+        printf("[LOG] Memoria de tokens liberada.\n");
+    }
 
     if (source_code != NULL)
+    {
+        printf("[LOG] Liberando memoria de source_code...\n");
         free(source_code);
+        printf("[LOG] Memoria de source_code liberada.\n");
+    }
 
     if (ast != NULL)
+    {
+        printf("[LOG] Liberando memoria de AST...\n");
         free_ast(ast);
+        printf("[LOG] Memoria de AST liberada.\n");
+    }
 
     if (get_error_count() > 0)
     {
+        printf("[LOG] Imprimiendo y limpiando la pila de errores...\n");
         print_error_stack();
         clear_error_stack();
+        printf("[LOG] Pila de errores limpiada.\n");
     }
 
     if (keywords != NULL && keyword_count > 0)
     {
+        printf("[LOG] Liberando memoria de keywords...\n");
         for (int i = 0; i < keyword_count; i++)
         {
-            free(keywords[i].name);
-            free(keywords[i].type);
-            free(keywords[i].category);
+            if (keywords[i].name)
+            {
+                printf("[LOG] Liberando memoria de keywords[%d].name...\n", i);
+                free(keywords[i].name);
+                printf("[LOG] Memoria de keywords[%d].name liberada.\n", i);
+            }
+            if (keywords[i].type)
+            {
+                printf("[LOG] Liberando memoria de keywords[%d].type...\n", i);
+                free(keywords[i].type);
+                printf("[LOG] Memoria de keywords[%d].type liberada.\n", i);
+            }
+            if (keywords[i].category)
+            {
+                printf("[LOG] Liberando memoria de keywords[%d].category...\n", i);
+                free(keywords[i].category);
+                printf("[LOG] Memoria de keywords[%d].category liberada.\n", i);
+            }
         }
         free(keywords);
+        printf("[LOG] Memoria de keywords liberada.\n");
     }
 
     return exit_code;
