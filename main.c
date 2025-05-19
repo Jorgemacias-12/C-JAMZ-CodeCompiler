@@ -12,9 +12,14 @@ int main(int argc, char *argv[])
 
     init_error_stack();
 
+    int keyword_count = 0;
+    Keyword *keywords = NULL;
+
     char *source_code = NULL;
     JAMZTokenList *tokens = NULL;
     int exit_code = EXIT_SUCCESS;
+
+    print_color("\nJAMZ C Compiler v0.0.1\n", JAMZ_COLOR_CYAN, true);
 
     if (argc != 2)
     {
@@ -84,8 +89,7 @@ int main(int argc, char *argv[])
 
     print_ast(ast, 0);
 
-    int keyword_count;
-    Keyword *keywords = load_keywords("data/keywords.json", &keyword_count);
+    keywords = load_keywords("data/keywords.json", &keyword_count);
 
     if (!keywords)
     {
@@ -125,7 +129,7 @@ cleanup:
         clear_error_stack();
     }
 
-    if (keywords != NULL)
+    if (keywords != NULL && keyword_count > 0)
     {
         for (int i = 0; i < keyword_count; i++)
         {

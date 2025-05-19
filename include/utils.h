@@ -21,6 +21,28 @@
 #include <windows.h>
 #endif
 
+typedef enum
+{
+    JAMZ_COLOR_DEFAULT = -1,
+#ifdef _WIN32
+    JAMZ_COLOR_RED = FOREGROUND_RED,
+    JAMZ_COLOR_GREEN = FOREGROUND_GREEN,
+    JAMZ_COLOR_BLUE = FOREGROUND_BLUE,
+    JAMZ_COLOR_YELLOW = FOREGROUND_RED | FOREGROUND_GREEN,
+    JAMZ_COLOR_CYAN = FOREGROUND_GREEN | FOREGROUND_BLUE,
+    JAMZ_COLOR_MAGENTA = FOREGROUND_RED | FOREGROUND_BLUE,
+    JAMZ_COLOR_WHITE = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
+#else
+    JAMZ_COLOR_RED = 31,
+    JAMZ_COLOR_GREEN = 32,
+    JAMZ_COLOR_YELLOW = 33,
+    JAMZ_COLOR_BLUE = 34,
+    JAMZ_COLOR_MAGENTA = 35,
+    JAMZ_COLOR_CYAN = 36,
+    JAMZ_COLOR_WHITE = 37,
+#endif
+} Color;
+
 // Error stack configuration
 #define MAX_ERRORS 50
 #define MAX_ERROR_LEN 512
@@ -38,6 +60,7 @@ char *read_file(const char *filename);
 void print_error(const char *format, ...);
 void set_console_color(WORD color);
 void reset_console_color();
+void print_color(const char *text, Color color, bool newline);
 
 const char *get_filename_ext(const char *filename);
 

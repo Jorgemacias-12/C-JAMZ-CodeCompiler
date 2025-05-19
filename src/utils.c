@@ -474,3 +474,30 @@ Keyword *load_keywords(const char *path, int *out_count)
     *out_count = size;
     return keywords;
 }
+
+void print_color(const char *text, Color color, bool newline)
+{
+#ifdef _WIN32
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
+    WORD saved_attributes;
+
+    GetConsoleScreenBufferInfo(hConsole, &consoleInfo);
+    saved_attributes = consoleInfo.wAttributes;
+
+    SetConsoleTextAttribute(hConsole, color);
+    printf("%s", text);
+    if (newline)
+        printf("\n");
+
+    SetConsoleTextAttribute(hConsole, saved_attributes);
+#else
+    if (color != JAMZ_COLOR_DEFAULT)
+        printf("\033[%dm", color);
+    printf("%s", text);
+    if (newline)
+        printf("\n");
+    if (color != JAMZ_COLOR_DEFAULT)
+        printf("\033[0m");
+#endif
+}
