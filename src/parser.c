@@ -199,7 +199,6 @@ static JAMZASTNode *parse_block(JAMZParser *parser)
 
 static JAMZASTNode *parse_declaration(JAMZParser *parser)
 {
-    // Declaración de variable: tipo nombre [= expr] ;
     if ((check(parser, JAMZ_TOKEN_INT)) ||
         (check(parser, JAMZ_TOKEN_CHAR)) ||
         (check(parser, JAMZ_TOKEN_IDENTIFIER) && (strcmp(current_token(parser).lexeme, "int") == 0 ||
@@ -298,13 +297,8 @@ static JAMZASTNode *parse_declaration(JAMZParser *parser)
         node->return_stmt.value = value;
         return node;
     }
-    // Si nada coincide, intenta parsear una expresión (por robustez)
-    JAMZASTNode *expr = parse_expression(parser);
-    if (expr && match(parser, JAMZ_TOKEN_SEMICOLON))
-    {
-        return expr;
-    }
-    push_error("Unknown statement or declaration.");
+    // Si nada coincide, no crear nodo Unknown, solo error
+    push_error("Unknown or invalid statement/declaration.");
     return NULL;
 }
 
@@ -367,13 +361,13 @@ static JAMZASTNode *parse_primary(JAMZParser *parser)
         var->column = tok.column;
         return var;
     }
-    if (check(parser, JAMZ_TOKEN_NUMBER) || check(parser, JAMZ_TOKEN_STRING))
+    if (check(parser, JAMZ_TOKEN_NUMBER) || check(parser, JAMZ_TOKEN_STRING) || check(parser, JAMZ_TOKEN_CHAR))
     {
         JAMZToken tok = advance(parser);
         JAMZASTNode *lit = malloc(sizeof(JAMZASTNode));
         lit->type = JAMZ_AST_LITERAL;
         lit->literal.value = strdup(tok.lexeme);
-        lit->literal.token_type = tok.type; // <--- Guardar tipo de token original
+        lit->literal.token_type = tok.type; // Guardar tipo de token original
         lit->line = tok.line;
         lit->column = tok.column;
         return lit;

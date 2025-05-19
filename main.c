@@ -4,9 +4,12 @@
 #include "include/parser.h"
 #include "include/semantic.h"
 #include "include/utils.h"
+#include <locale.h>
 
 int main(int argc, char *argv[])
 {
+    setlocale(LC_ALL, "");
+
     init_error_stack();
 
     char *source_code = NULL;
@@ -81,16 +84,6 @@ int main(int argc, char *argv[])
 
     print_ast(ast, 0);
 
-    // Operaciones: ejemplo de suma y tipo
-    printf("\nOperaciones de ejemplo:\n\n");
-    // Buscar una declaración de variable 'a' y mostrar su tipo
-    // Buscar una declaración de variable 'string' y mostrar su tipo
-    // (Esto es solo demostrativo, el análisis real se hace en semantic.c)
-    //
-    // Si quieres mostrar el tipo de cada variable declarada, puedes recorrer el AST aquí
-    //
-    // El análisis semántico ya revisa tipos y muestra errores, así que aquí solo mostramos info
-
     int keyword_count;
     Keyword *keywords = load_keywords("data/keywords.json", &keyword_count);
 
@@ -109,13 +102,11 @@ int main(int argc, char *argv[])
                keywords[i].name, keywords[i].type, keywords[i].category);
     }
 
-    // Análisis semántico
     analyze_semantics(ast, keywords, keyword_count);
 
-    // Mensaje si no hubo errores semánticos
     if (get_error_count() == 0)
     {
-        printf("\n[OK] Análisis semántico completado sin errores.\n");
+        printf("\n[OK] Semantic analysis completed without errors\n");
     }
 
 cleanup:
@@ -134,13 +125,16 @@ cleanup:
         clear_error_stack();
     }
 
-    for (int i = 0; i < keyword_count; i++)
+    if (keywords != NULL)
     {
-        free(keywords[i].name);
-        free(keywords[i].type);
-        free(keywords[i].category);
+        for (int i = 0; i < keyword_count; i++)
+        {
+            free(keywords[i].name);
+            free(keywords[i].type);
+            free(keywords[i].category);
+        }
+        free(keywords);
     }
-    free(keywords);
 
     return exit_code;
 }

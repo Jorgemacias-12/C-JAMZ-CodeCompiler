@@ -311,6 +311,34 @@ static void print_ast_internal(const JAMZASTNode *node, int indent, bool is_last
         break;
     }
 
+    case JAMZ_AST_DECLARATION:
+    {
+        char buffer[128];
+        snprintf(buffer, sizeof(buffer), "Declaration '%s %s'", node->declaration.type_name ? node->declaration.type_name : "?", node->declaration.var_name ? node->declaration.var_name : "?");
+        print_node_info(node, buffer);
+        if (node->declaration.initializer)
+        {
+            print_indent_ascii(indent + 1, true);
+            printf("Initializer\n");
+            print_ast_internal(node->declaration.initializer, indent + 2, true);
+        }
+        break;
+    }
+
+    case JAMZ_AST_ASSIGNMENT:
+    {
+        char buffer[128];
+        snprintf(buffer, sizeof(buffer), "Assignment '%s'", node->assignment.var_name ? node->assignment.var_name : "?");
+        print_node_info(node, buffer);
+        if (node->assignment.value)
+        {
+            print_indent_ascii(indent + 1, true);
+            printf("Value\n");
+            print_ast_internal(node->assignment.value, indent + 2, true);
+        }
+        break;
+    }
+
     default:
         print_node_info(node, "Unknown");
         break;

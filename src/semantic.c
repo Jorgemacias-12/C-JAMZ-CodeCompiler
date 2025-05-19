@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <locale.h>
 #include "semantic.h"
 #include "parser.h"
 #include "utils.h"
@@ -90,11 +91,11 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
     switch (ast->type)
     {
     case JAMZ_AST_LITERAL:
-        // Usar el tipo de token original para distinguir strings/números
+        // Usar el tipo de token original para distinguir strings/números/caracteres
         if (ast->literal.value)
         {
             JAMZTokenType ttype = ast->literal.token_type;
-            if (ttype != JAMZ_TOKEN_NUMBER && ttype != JAMZ_TOKEN_STRING)
+            if (ttype != JAMZ_TOKEN_NUMBER && ttype != JAMZ_TOKEN_STRING && ttype != JAMZ_TOKEN_CHAR)
             {
                 print_error("Unknown literal: '%s' (line %d, col %d)\n",
                             ast->literal.value, ast->line, ast->column);
@@ -248,6 +249,7 @@ void print_symbol_table_ast(const SimpleSymbolTable *table, int indent)
 
 void analyze_semantics(JAMZASTNode *ast, Keyword *keywords, int keyword_count)
 {
+    setlocale(LC_ALL, ""); // Para que printf muestre bien los acentos y caracteres especiales
     SimpleSymbolTable *global = malloc(sizeof(SimpleSymbolTable));
     global->symbols = NULL;
     global->parent = NULL;
