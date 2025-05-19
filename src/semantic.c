@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <locale.h>
+#include <stdarg.h>
 #include "semantic.h"
 #include "parser.h"
 #include "utils.h"
@@ -47,16 +48,16 @@ static void free_symbol_table(SimpleSymbolTable *table)
 {
     while (table)
     {
-        printf("[DEBUG] Liberando tabla de símbolos en %p\n", (void *)table);
+        log_debug("Liberando tabla de símbolos en %p\n", (void *)table);
         if (!table->symbols && !table->parent)
         {
-            printf("[DEBUG] Tabla de símbolos ya liberada o vacía en %p\n", (void *)table);
+            log_debug("Tabla de símbolos ya liberada o vacía en %p\n", (void *)table);
             break;
         }
         SimpleSymbol *sym = table->symbols;
         while (sym)
         {
-            printf("[DEBUG] Liberando símbolo: %s\n", sym->name);
+            log_debug("Liberando símbolo: %s\n", sym->name);
             SimpleSymbol *next = sym->next;
             free(sym->name);
             free(sym->type);
@@ -85,7 +86,14 @@ static bool is_keyword_of_category(const char *name, const char *category, Keywo
 
 static bool is_valid_type(const char *name, Keyword *keywords, int count)
 {
-    return is_keyword_of_category(name, "type", keywords, count);
+    for (int i = 0; i < count; i++)
+    {
+        if (strcmp(keywords[i].name, name) == 0 && strcmp(keywords[i].category, "type") == 0)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 static bool is_control_keyword(const char *name, Keyword *keywords, int count)
@@ -97,16 +105,16 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
 {
     if (!ast)
     {
-        printf("[DEBUG] Nodo AST nulo\n");
+        log_debug("Nodo AST nulo\n");
         return;
     }
-    printf("[DEBUG] Analizando nodo AST de tipo %d\n", ast->type);
+    log_debug("Analizando nodo AST de tipo %d\n", ast->type);
     switch (ast->type)
     {
     case JAMZ_AST_LITERAL:
         if (ast->literal.value)
         {
-            printf("[DEBUG] Literal encontrado: %s\n", ast->literal.value);
+            log_debug("Literal encontrado: %s\n", ast->literal.value);
             JAMZTokenType ttype = ast->literal.token_type;
             if (ttype != JAMZ_TOKEN_NUMBER && ttype != JAMZ_TOKEN_STRING && ttype != JAMZ_TOKEN_CHAR)
             {
@@ -122,17 +130,26 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
         }
         break;
     case JAMZ_AST_DECLARATION:
-        printf("[DEBUG] Declaración de variable: %s de tipo %s\n", ast->declaration.var_name, ast->declaration.type_name);
-        add_symbol(table, ast->declaration.var_name, ast->declaration.type_name);
+        log_debug("Declaración de variable: %s de tipo %s\n", ast->declaration.var_name, ast->declaration.type_name);
+        if (!is_valid_type(ast->declaration.type_name, keywords, keyword_count))
+        {
+            push_error("Tipo '%s' no válido para la variable '%s' (línea %d, col %d)\n",
+                       ast->declaration.type_name, ast->declaration.var_name, ast->line, ast->column);
+        }
+        else
+        {
+            add_symbol(table, ast->declaration.var_name, ast->declaration.type_name);
+        }
         if (ast->declaration.initializer)
             analyze_node_with_symbols(ast->declaration.initializer, keywords, keyword_count, table);
         break;
     case JAMZ_AST_ASSIGNMENT:
     {
+        log_debug("Asignación a la variable: %s\n", ast->assignment.var_name);
         SimpleSymbol *sym = find_symbol(table, ast->assignment.var_name);
         if (!sym)
         {
-            push_error("Variable '%s' not declared (line %d, col %d)\n", ast->assignment.var_name, ast->line, ast->column);
+            push_error("Variable '%s' no declarada (línea %d, col %d)\n", ast->assignment.var_name, ast->line, ast->column);
         }
         else if (ast->assignment.value)
         {
@@ -153,7 +170,7 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
             }
             if (rhs_type && strcmp(sym->type, rhs_type) != 0)
             {
-                push_error("Type mismatch: cannot assign '%s' to variable '%s' of type '%s' (line %d, col %d)\n",
+                push_error("Incompatibilidad de tipos: no se puede asignar '%s' a la variable '%s' de tipo '%s' (línea %d, col %d)\n",
                            rhs_type, ast->assignment.var_name, sym->type, ast->line, ast->column);
             }
             analyze_node_with_symbols(ast->assignment.value, keywords, keyword_count, table);
@@ -163,10 +180,11 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
     case JAMZ_AST_BLOCK:
     case JAMZ_AST_PROGRAM:
     {
+        log_debug("Creando tabla de símbolos local\n");
         SimpleSymbolTable *local = safe_malloc(sizeof(SimpleSymbolTable));
         local->symbols = NULL;
         local->parent = table;
-        printf("[DEBUG] Creando tabla de símbolos local en %p\n", (void *)local);
+        log_debug("Creando tabla de símbolos local en %p\n", (void *)local);
         for (size_t i = 0; i < ast->block.count; i++)
         {
             analyze_node_with_symbols(ast->block.statements[i], keywords, keyword_count, local);
@@ -238,7 +256,7 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
         break;
     }
     default:
-        printf("[DEBUG] Nodo AST no manejado: tipo %d\n", ast->type);
+        log_debug("Nodo AST no manejado: tipo %d\n", ast->type);
         break;
     }
 }
@@ -263,6 +281,19 @@ void analyze_semantics(JAMZASTNode *ast, Keyword *keywords, int keyword_count)
     SimpleSymbolTable *global = safe_malloc(sizeof(SimpleSymbolTable));
     global->symbols = NULL;
     global->parent = NULL;
+
+    for (int i = 0; i < keyword_count; i++)
+    {
+        if (strcmp(keywords[i].category, "type") == 0)
+        {
+            add_symbol(global, keywords[i].name, "type");
+        }
+        else if (strcmp(keywords[i].category, "function") == 0)
+        {
+            add_symbol(global, keywords[i].name, "function");
+        }
+    }
+
     analyze_node_with_symbols(ast, keywords, keyword_count, global);
     print_symbol_table_ast(global, 0);
     free_symbol_table(global);

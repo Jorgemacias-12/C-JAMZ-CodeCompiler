@@ -5,9 +5,11 @@
 #include "utils.h"
 #include "lexer.h"
 #include "cJSON.h"
+#include <stdarg.h>
 
 static char error_stack[MAX_ERRORS][MAX_ERROR_LEN];
 static size_t error_count;
+static FILE *log_file = NULL;
 
 #ifdef _WIN32
 #include <windows.h>
@@ -490,4 +492,23 @@ void print_color(const char *text, Color color, bool newline)
     if (color != JAMZ_COLOR_DEFAULT)
         printf("\033[0m");
 #endif
+}
+
+void log_debug(const char *format, ...)
+{
+    if (!log_file)
+    {
+        log_file = fopen("program.log", "a");
+        if (!log_file)
+        {
+            perror("Error opening log file");
+            return;
+        }
+    }
+
+    va_list args;
+    va_start(args, format);
+    vfprintf(log_file, format, args);
+    va_end(args);
+    fflush(log_file);
 }

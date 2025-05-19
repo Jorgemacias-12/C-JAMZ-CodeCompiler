@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include "lexer.h"
 #include "parser.h"
 #include "semantic.h"
@@ -77,5 +78,8 @@ void print_ast(const JAMZASTNode *node, int indent);
 
 // Semantic utils
 Keyword *load_keywords(const char *path, int *out_count);
+
+// Debugging utils
+void log_debug(const char *format, ...);
 
 #endif
