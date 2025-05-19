@@ -47,16 +47,25 @@ static void free_symbol_table(SimpleSymbolTable *table)
 {
     while (table)
     {
+        printf("[DEBUG] Liberando tabla de símbolos en %p\n", (void *)table);
+        if (!table->symbols && !table->parent)
+        {
+            printf("[DEBUG] Tabla de símbolos ya liberada o vacía en %p\n", (void *)table);
+            break;
+        }
         SimpleSymbol *sym = table->symbols;
         while (sym)
         {
+            printf("[DEBUG] Liberando símbolo: %s\n", sym->name);
             SimpleSymbol *next = sym->next;
             free(sym->name);
             free(sym->type);
             free(sym);
             sym = next;
         }
+        table->symbols = NULL; // Evitar doble liberación
         SimpleSymbolTable *parent = table->parent;
+        table->parent = NULL; // Desvincular para evitar referencias cíclicas
         free(table);
         table = parent;
     }
@@ -87,13 +96,17 @@ static bool is_control_keyword(const char *name, Keyword *keywords, int count)
 static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int keyword_count, SimpleSymbolTable *table)
 {
     if (!ast)
+    {
+        printf("[DEBUG] Nodo AST nulo\n");
         return;
+    }
+    printf("[DEBUG] Analizando nodo AST de tipo %d\n", ast->type);
     switch (ast->type)
     {
     case JAMZ_AST_LITERAL:
-        // Usar el tipo de token original para distinguir strings/números/caracteres
         if (ast->literal.value)
         {
+            printf("[DEBUG] Literal encontrado: %s\n", ast->literal.value);
             JAMZTokenType ttype = ast->literal.token_type;
             if (ttype != JAMZ_TOKEN_NUMBER && ttype != JAMZ_TOKEN_STRING && ttype != JAMZ_TOKEN_CHAR)
             {
@@ -109,6 +122,7 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
         }
         break;
     case JAMZ_AST_DECLARATION:
+        printf("[DEBUG] Declaración de variable: %s de tipo %s\n", ast->declaration.var_name, ast->declaration.type_name);
         add_symbol(table, ast->declaration.var_name, ast->declaration.type_name);
         if (ast->declaration.initializer)
             analyze_node_with_symbols(ast->declaration.initializer, keywords, keyword_count, table);
@@ -122,7 +136,6 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
         }
         else if (ast->assignment.value)
         {
-            // Comprobar tipo del valor asignado
             const char *rhs_type = NULL;
             if (ast->assignment.value->type == JAMZ_AST_LITERAL)
             {
@@ -153,6 +166,7 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
         SimpleSymbolTable *local = malloc(sizeof(SimpleSymbolTable));
         local->symbols = NULL;
         local->parent = table;
+        printf("[DEBUG] Creando tabla de símbolos local en %p\n", (void *)local);
         for (size_t i = 0; i < ast->block.count; i++)
         {
             analyze_node_with_symbols(ast->block.statements[i], keywords, keyword_count, local);
@@ -174,7 +188,6 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
         break;
     case JAMZ_AST_BINARY:
     {
-        // Comprobación de tipos en operaciones binarias
         const char *left_type = NULL;
         const char *right_type = NULL;
         if (ast->binary.left)
@@ -213,7 +226,6 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
                     right_type = sym->type;
             }
         }
-        // Solo permitimos operaciones entre int por ahora
         if (left_type && right_type && strcmp(left_type, right_type) != 0)
         {
             push_error("Type mismatch in binary operation: '%s' vs '%s' (line %d, col %d)\n",
@@ -226,35 +238,32 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
         break;
     }
     default:
+        printf("[DEBUG] Nodo AST no manejado: tipo %d\n", ast->type);
         break;
     }
 }
 
-// Imprime la tabla de símbolos como un árbol (AST)
+// Imprime la tabla de símbolos como un árbol (solo la tabla actual, no los padres)
 void print_symbol_table_ast(const SimpleSymbolTable *table, int indent)
 {
     if (!table)
+    {
         return;
+    }
     for (const SimpleSymbol *sym = table->symbols; sym; sym = sym->next)
     {
         for (int i = 0; i < indent; ++i)
             printf("  ");
         printf("|- %s : %s\n", sym->name, sym->type);
     }
-    if (table->parent)
-    {
-        print_symbol_table_ast(table->parent, indent + 1);
-    }
 }
 
 void analyze_semantics(JAMZASTNode *ast, Keyword *keywords, int keyword_count)
 {
-    setlocale(LC_ALL, ""); // Para que printf muestre bien los acentos y caracteres especiales
     SimpleSymbolTable *global = malloc(sizeof(SimpleSymbolTable));
     global->symbols = NULL;
     global->parent = NULL;
     analyze_node_with_symbols(ast, keywords, keyword_count, global);
-    printf("\nVariables y tipos encontrados por el análisis semántico (formato árbol):\n");
     print_symbol_table_ast(global, 0);
     free_symbol_table(global);
 }

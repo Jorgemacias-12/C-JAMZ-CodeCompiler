@@ -20,7 +20,8 @@ typedef enum
     JAMZ_TOKEN_EOF,
     JAMZ_TOKEN_MAIN,
     JAMZ_TOKEN_UNKNOWN,
-    JAMZ_TOKEN_CHAR
+    JAMZ_TOKEN_CHAR,
+    JAMZ_TOKEN_FLOAT
 } JAMZTokenType;
 
 typedef struct

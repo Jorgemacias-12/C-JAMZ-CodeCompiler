@@ -210,9 +210,37 @@ void print_tokens(const JAMZTokenList *list)
     for (size_t i = 0; i < list->count; ++i)
     {
         JAMZToken token = list->tokens[i];
-        printf("[%-3zu] %-12s '%s'  (line %d, col %d)\n",
-               i,
-               jamz_token_type_to_string(token.type),
+        Color color;
+        switch (token.type)
+        {
+        case JAMZ_TOKEN_INT:
+        case JAMZ_TOKEN_FLOAT:
+        case JAMZ_TOKEN_CHAR:
+            color = JAMZ_COLOR_BLUE;
+            break;
+        case JAMZ_TOKEN_IDENTIFIER:
+            color = JAMZ_COLOR_GREEN;
+            break;
+        case JAMZ_TOKEN_OPERATOR:
+            color = JAMZ_COLOR_YELLOW;
+            break;
+        case JAMZ_TOKEN_STRING:
+            color = JAMZ_COLOR_MAGENTA;
+            break;
+        case JAMZ_TOKEN_NUMBER:
+            color = JAMZ_COLOR_CYAN;
+            break;
+        default:
+            color = JAMZ_COLOR_RED;
+            break;
+        }
+        print_color("[", JAMZ_COLOR_WHITE, false);
+        printf("%-3zu", i);
+        print_color("]", JAMZ_COLOR_WHITE, false);
+        print_color(" ", JAMZ_COLOR_DEFAULT, false);
+        print_color(jamz_token_type_to_string(token.type), color, false);
+        print_color(" ", JAMZ_COLOR_DEFAULT, false);
+        printf("'%s'  (line %d, col %d)\n",
                token.lexeme,
                token.line,
                token.column);
@@ -231,9 +259,10 @@ static void print_indent_ascii(int indent, bool is_last)
     }
 }
 
-static void print_node_info(const JAMZASTNode *node, const char *label)
+static void print_node_info(const JAMZASTNode *node, const char *label, Color color)
 {
-    printf("%s (line: %d, col: %d)\n", label, node->line, node->column);
+    print_color(label, color, false);
+    printf(" (line: %d, col: %d)\n", node->line, node->column);
 }
 
 static void print_ast_internal(const JAMZASTNode *node, int indent, bool is_last)
@@ -246,7 +275,7 @@ static void print_ast_internal(const JAMZASTNode *node, int indent, bool is_last
     switch (node->type)
     {
     case JAMZ_AST_PROGRAM:
-        print_node_info(node, "Program");
+        print_node_info(node, "Program", JAMZ_COLOR_BLUE);
         for (size_t i = 0; i < node->block.count; ++i)
         {
             print_ast_internal(node->block.statements[i], indent + 1, i == node->block.count - 1);
@@ -254,93 +283,31 @@ static void print_ast_internal(const JAMZASTNode *node, int indent, bool is_last
         break;
 
     case JAMZ_AST_BLOCK:
-        print_node_info(node, "Block");
+        print_node_info(node, "Block", JAMZ_COLOR_GREEN);
         for (size_t i = 0; i < node->block.count; ++i)
         {
             print_ast_internal(node->block.statements[i], indent + 1, i == node->block.count - 1);
         }
         break;
 
-    case JAMZ_AST_RETURN:
-        print_node_info(node, "Return");
-        print_ast_internal(node->return_stmt.value, indent + 1, true);
-        break;
-
-    case JAMZ_AST_IF:
-        print_node_info(node, "If");
-
-        print_indent_ascii(indent + 1, false);
-        printf("Condition\n");
-        print_ast_internal(node->if_stmt.condition, indent + 2, true);
-
-        print_indent_ascii(indent + 1, node->if_stmt.else_branch == NULL);
-        printf("Then\n");
-        print_ast_internal(node->if_stmt.then_branch, indent + 2, node->if_stmt.else_branch == NULL);
-
-        if (node->if_stmt.else_branch)
-        {
-            print_indent_ascii(indent + 1, true);
-            printf("Else\n");
-            print_ast_internal(node->if_stmt.else_branch, indent + 2, true);
-        }
-        break;
-
-    case JAMZ_AST_BINARY:
-    {
-        char buffer[64];
-        snprintf(buffer, sizeof(buffer), "Binary '%s'", node->binary.op ? node->binary.op : "");
-        print_node_info(node, buffer);
-        print_ast_internal(node->binary.left, indent + 1, false);
-        print_ast_internal(node->binary.right, indent + 1, true);
-        break;
-    }
-
-    case JAMZ_AST_LITERAL:
-    {
-        char buffer[64];
-        snprintf(buffer, sizeof(buffer), "Literal '%s'", node->literal.value ? node->literal.value : "");
-        print_node_info(node, buffer);
-        break;
-    }
-
-    case JAMZ_AST_VARIABLE:
-    {
-        char buffer[64];
-        snprintf(buffer, sizeof(buffer), "Variable '%s'", node->variable.var_name ? node->variable.var_name : "");
-        print_node_info(node, buffer);
-        break;
-    }
-
     case JAMZ_AST_DECLARATION:
-    {
-        char buffer[128];
-        snprintf(buffer, sizeof(buffer), "Declaration '%s %s'", node->declaration.type_name ? node->declaration.type_name : "?", node->declaration.var_name ? node->declaration.var_name : "?");
-        print_node_info(node, buffer);
-        if (node->declaration.initializer)
-        {
-            print_indent_ascii(indent + 1, true);
-            printf("Initializer\n");
-            print_ast_internal(node->declaration.initializer, indent + 2, true);
-        }
+        print_node_info(node, "Declaration", JAMZ_COLOR_YELLOW);
         break;
-    }
 
     case JAMZ_AST_ASSIGNMENT:
-    {
-        char buffer[128];
-        snprintf(buffer, sizeof(buffer), "Assignment '%s'", node->assignment.var_name ? node->assignment.var_name : "?");
-        print_node_info(node, buffer);
-        if (node->assignment.value)
-        {
-            print_indent_ascii(indent + 1, true);
-            printf("Value\n");
-            print_ast_internal(node->assignment.value, indent + 2, true);
-        }
+        print_node_info(node, "Assignment", JAMZ_COLOR_MAGENTA);
         break;
-    }
+
+    case JAMZ_AST_RETURN:
+        print_node_info(node, "Return", JAMZ_COLOR_CYAN);
+        break;
+
+    case JAMZ_AST_LITERAL:
+        print_node_info(node, "Literal", JAMZ_COLOR_RED);
+        break;
 
     default:
-        print_node_info(node, "Unknown");
+        print_node_info(node, "Unknown", JAMZ_COLOR_WHITE);
         break;
     }
 }

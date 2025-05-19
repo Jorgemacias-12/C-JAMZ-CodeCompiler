@@ -72,11 +72,11 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
 
-    printf("\nLexer analysis has ecountered the following tokens:\n\n");
+    print_color("\nLexer analysis has ecountered the following tokens:\n\n", JAMZ_COLOR_YELLOW, true);
 
     print_tokens(tokens);
 
-    printf("\nThe parser has the following AST:\n\n");
+    print_color("\nThe parser has the following AST:\n\n", JAMZ_COLOR_MAGENTA, true);
 
     JAMZASTNode *ast = parser_parse(tokens);
 
@@ -88,6 +88,8 @@ int main(int argc, char *argv[])
     }
 
     print_ast(ast, 0);
+
+    print_color("\n\nThe semantic analysis: \n\n", JAMZ_COLOR_YELLOW, true);
 
     keywords = load_keywords("data/keywords.json", &keyword_count);
 
