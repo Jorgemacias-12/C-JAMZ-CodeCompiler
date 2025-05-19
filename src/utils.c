@@ -69,13 +69,36 @@ size_t get_error_count(void)
 
 char *strndup_impl(const char *src, size_t length)
 {
-    char *result = malloc(length + 1);
+    char *result = safe_malloc(length + 1);
     if (!result)
         return NULL;
 
     memcpy(result, src, length);
     result[length] = '\0';
     return result;
+}
+
+void *safe_malloc(size_t size)
+{
+    void *ptr = malloc(size);
+    if (!ptr)
+    {
+        fprintf(stderr, "[ERROR] Memory allocation failed for size %zu\n", size);
+        exit(EXIT_FAILURE);
+    }
+    return ptr;
+}
+
+void *safe_realloc(void *ptr, size_t size)
+{
+    void *new_ptr = realloc(ptr, size);
+    if (!new_ptr)
+    {
+        fprintf(stderr, "[ERROR] Memory reallocation failed for size %zu\n", size);
+        free(ptr); // Liberar memoria previa para evitar fugas
+        exit(EXIT_FAILURE);
+    }
+    return new_ptr;
 }
 
 char *read_file(const char *filename)
@@ -106,7 +129,7 @@ char *read_file(const char *filename)
 
     rewind(file);
 
-    char *content = malloc(length + 1);
+    char *content = safe_malloc(length + 1);
 
     if (!content)
     {
@@ -398,7 +421,7 @@ Keyword *load_keywords(const char *path, int *out_count)
     long length = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    char *content = malloc(length + 1);
+    char *content = safe_malloc(length + 1);
 
     if (fread(content, 1, length, file) != length)
     {
@@ -421,7 +444,7 @@ Keyword *load_keywords(const char *path, int *out_count)
     }
 
     int size = cJSON_GetArraySize(json);
-    Keyword *keywords = malloc(size * sizeof(Keyword));
+    Keyword *keywords = safe_malloc(size * sizeof(Keyword));
 
     for (int i = 0; i < size; i++)
     {

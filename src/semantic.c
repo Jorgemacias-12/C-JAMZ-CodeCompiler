@@ -36,7 +36,7 @@ static SimpleSymbol *find_symbol(SimpleSymbolTable *table, const char *name)
 
 static void add_symbol(SimpleSymbolTable *table, const char *name, const char *type)
 {
-    SimpleSymbol *sym = malloc(sizeof(SimpleSymbol));
+    SimpleSymbol *sym = safe_malloc(sizeof(SimpleSymbol));
     sym->name = strdup(name);
     sym->type = strdup(type);
     sym->next = table->symbols;
@@ -163,7 +163,7 @@ static void analyze_node_with_symbols(JAMZASTNode *ast, Keyword *keywords, int k
     case JAMZ_AST_BLOCK:
     case JAMZ_AST_PROGRAM:
     {
-        SimpleSymbolTable *local = malloc(sizeof(SimpleSymbolTable));
+        SimpleSymbolTable *local = safe_malloc(sizeof(SimpleSymbolTable));
         local->symbols = NULL;
         local->parent = table;
         printf("[DEBUG] Creando tabla de símbolos local en %p\n", (void *)local);
@@ -260,7 +260,7 @@ void print_symbol_table_ast(const SimpleSymbolTable *table, int indent)
 
 void analyze_semantics(JAMZASTNode *ast, Keyword *keywords, int keyword_count)
 {
-    SimpleSymbolTable *global = malloc(sizeof(SimpleSymbolTable));
+    SimpleSymbolTable *global = safe_malloc(sizeof(SimpleSymbolTable));
     global->symbols = NULL;
     global->parent = NULL;
     analyze_node_with_symbols(ast, keywords, keyword_count, global);

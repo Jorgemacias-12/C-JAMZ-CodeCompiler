@@ -62,7 +62,7 @@ static int get_precedence(JAMZTokenType type)
 
 JAMZASTNode *parser_parse(JAMZTokenList *tokens)
 {
-    JAMZParser *parser = malloc(sizeof(JAMZParser));
+    JAMZParser *parser = safe_malloc(sizeof(JAMZParser));
     if (!parser)
     {
         push_error("Out of memory creating parser.");
@@ -110,7 +110,7 @@ static JAMZASTNode *parse_program_node(JAMZParser *parser)
         return NULL;
     }
 
-    JAMZASTNode *program = malloc(sizeof(JAMZASTNode));
+    JAMZASTNode *program = safe_malloc(sizeof(JAMZASTNode));
     if (!program)
     {
         push_error("Out of memory creating program node.");
@@ -122,7 +122,7 @@ static JAMZASTNode *parse_program_node(JAMZParser *parser)
     program->line = 1; // Línea y columna fija o podrías obtener del primer token
     program->column = 1;
     program->block.count = 1;
-    program->block.statements = malloc(sizeof(JAMZASTNode *));
+    program->block.statements = safe_malloc(sizeof(JAMZASTNode *));
     if (!program->block.statements)
     {
         push_error("Out of memory creating program statements array.");
@@ -145,7 +145,7 @@ static JAMZASTNode *parse_block(JAMZParser *parser)
     size_t capacity = 8;
     size_t count = 0;
 
-    JAMZASTNode **stmts = malloc(capacity * sizeof(JAMZASTNode *));
+    JAMZASTNode **stmts = safe_malloc(capacity * sizeof(JAMZASTNode *));
     if (!stmts)
     {
         push_error("Out of memory parsing block.");
@@ -180,7 +180,7 @@ static JAMZASTNode *parse_block(JAMZParser *parser)
         free(stmts);
         return NULL;
     }
-    JAMZASTNode *node = malloc(sizeof(JAMZASTNode));
+    JAMZASTNode *node = safe_malloc(sizeof(JAMZASTNode));
     if (!node)
     {
         push_error("Out of memory creating block node.");
@@ -236,7 +236,7 @@ static JAMZASTNode *parse_declaration(JAMZParser *parser)
             free(type_name);
             return NULL;
         }
-        JAMZASTNode *decl = calloc(1, sizeof(JAMZASTNode));
+        JAMZASTNode *decl = safe_malloc(sizeof(JAMZASTNode));
         decl->type = JAMZ_AST_DECLARATION;
         decl->line = type_token.line;
         decl->column = type_token.column;
@@ -260,7 +260,7 @@ static JAMZASTNode *parse_declaration(JAMZParser *parser)
                     free_ast(value);
                 return NULL;
             }
-            JAMZASTNode *assign = calloc(1, sizeof(JAMZASTNode));
+            JAMZASTNode *assign = safe_malloc(sizeof(JAMZASTNode));
             assign->type = JAMZ_AST_ASSIGNMENT;
             assign->line = name_token.line;
             assign->column = name_token.column;
@@ -290,7 +290,7 @@ static JAMZASTNode *parse_declaration(JAMZParser *parser)
                 free_ast(value);
             return NULL;
         }
-        JAMZASTNode *node = malloc(sizeof(JAMZASTNode));
+        JAMZASTNode *node = safe_malloc(sizeof(JAMZASTNode));
         node->type = JAMZ_AST_RETURN;
         node->line = return_token.line;
         node->column = return_token.column;
@@ -314,7 +314,7 @@ static JAMZASTNode *parse_assignment(JAMZParser *parser)
     {
         advance(parser);
         JAMZASTNode *value = parse_assignment(parser);
-        JAMZASTNode *assign = malloc(sizeof(JAMZASTNode));
+        JAMZASTNode *assign = safe_malloc(sizeof(JAMZASTNode));
         assign->type = JAMZ_AST_ASSIGNMENT;
         assign->assignment.var_name = strdup(left->variable.var_name);
         assign->assignment.value = value;
@@ -337,7 +337,7 @@ static JAMZASTNode *parse_binary_expression(JAMZParser *parser, int min_prec)
             break;
         advance(parser);
         JAMZASTNode *right = parse_primary(parser);
-        JAMZASTNode *bin = malloc(sizeof(JAMZASTNode));
+        JAMZASTNode *bin = safe_malloc(sizeof(JAMZASTNode));
         bin->type = JAMZ_AST_BINARY;
         bin->binary.left = left;
         bin->binary.op = strdup(op_token.lexeme);
@@ -354,7 +354,7 @@ static JAMZASTNode *parse_primary(JAMZParser *parser)
     if (check(parser, JAMZ_TOKEN_IDENTIFIER))
     {
         JAMZToken tok = advance(parser);
-        JAMZASTNode *var = malloc(sizeof(JAMZASTNode));
+        JAMZASTNode *var = safe_malloc(sizeof(JAMZASTNode));
         var->type = JAMZ_AST_VARIABLE;
         var->variable.var_name = strdup(tok.lexeme);
         var->line = tok.line;
@@ -364,7 +364,7 @@ static JAMZASTNode *parse_primary(JAMZParser *parser)
     if (check(parser, JAMZ_TOKEN_NUMBER) || check(parser, JAMZ_TOKEN_STRING) || check(parser, JAMZ_TOKEN_CHAR))
     {
         JAMZToken tok = advance(parser);
-        JAMZASTNode *lit = malloc(sizeof(JAMZASTNode));
+        JAMZASTNode *lit = safe_malloc(sizeof(JAMZASTNode));
         lit->type = JAMZ_AST_LITERAL;
         lit->literal.value = strdup(tok.lexeme);
         lit->literal.token_type = tok.type; // Guardar tipo de token original

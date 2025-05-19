@@ -64,6 +64,10 @@ void print_color(const char *text, Color color, bool newline);
 
 const char *get_filename_ext(const char *filename);
 
+// Memory management utils
+void *safe_malloc(size_t size);
+void *safe_realloc(void *ptr, size_t size);
+
 // Lexer utils
 const char *jamz_token_type_to_string(JAMZTokenType type);
 void print_tokens(const JAMZTokenList *list);
