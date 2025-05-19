@@ -4,6 +4,7 @@
 #include "include/parser.h"
 #include "include/semantic.h"
 #include "include/utils.h"
+#include "compile.h"
 #include <locale.h>
 
 int main(int argc, char *argv[])
@@ -114,10 +115,16 @@ int main(int argc, char *argv[])
 
     analyze_semantics(ast, keywords, keyword_count);
 
-    if (get_error_count() == 0)
+    if (get_error_count() > 0)
     {
-        printf("\n[OK] Semantic analysis completed without errors\n");
+        print_error_stack();
+        log_debug("[LOG] Pila de errores limpiada.\n");
+        clear_error_stack();
+        exit_code = EXIT_FAILURE;
+        goto cleanup;
     }
+
+    generate_asm(ast, filename);
 
 cleanup:
     if (tokens != NULL)

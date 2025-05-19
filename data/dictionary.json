@@ -1,0 +1,13 @@
+{
+  "declaration": "mov dword [var], 0",
+  "declaration_with_literal": "    mov dword [%s], %s\n",
+  "declaration_with_binary": "    mov eax, %s\n    add eax, %s\n    mov dword [%s], eax\n",
+  "binary_add": "    add eax, %s\n",
+  "binary_sub": "    sub eax, %s\n",
+  "binary_mul": "    imul eax, %s\n",
+  "binary_div": "    xor edx, edx\n    div dword [%s]\n",
+  "return": "    mov eax, %s\n    ret\n",
+  "char": "db",
+  "int": "dd",
+  "print": "    push eax\n    call printf\n    add esp, 4\n"
+}

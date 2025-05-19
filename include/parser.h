@@ -14,7 +14,8 @@ typedef enum
     JAMZ_AST_EXPRESSION,
     JAMZ_AST_BINARY,
     JAMZ_AST_LITERAL,
-    JAMZ_AST_VARIABLE
+    JAMZ_AST_VARIABLE,
+    JAMZ_AST_PRINT,
 } JAMZASTNodeType;
 
 // Declaración de variable
